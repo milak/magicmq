@@ -9,7 +9,7 @@ const VIRTUAL = "VIRTUAL"
 type Topic struct {
 	Name string
 	Type string
-	TopicList []string
+	TopicList []string `json:"Topics,omitempty"`
 }
 func NewTopic(aName string) *Topic {
 	return &Topic{Name : aName, Type : SIMPLE}

@@ -9,6 +9,7 @@ import (
 )
 var configuration types.Configuration 
 func infoListener(w http.ResponseWriter, req *http.Request) {
+	
 	io.WriteString(w, "{\n")
 	io.WriteString(w, "\tinstance : {\n")
 	io.WriteString(w, "\t\tversion : \""+configuration.APP_VERSION+"\"\n")
@@ -19,42 +20,30 @@ func infoListener(w http.ResponseWriter, req *http.Request) {
 }
 func topicListListener(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(200)
-	io.WriteString(w, "{\n")
-	io.WriteString(w, "\ttopics  : [\n")
-	for i := range configuration.Topics {
-		io.WriteString(w, "\t\ttopic : {\n\t\t\tName : \"" + configuration.Topics[i].Name + "\"\n\t\t}\n")
-	}
-	io.WriteString(w, "\t]\n")
-	io.WriteString(w, "}\n")
+	encoder := json.NewEncoder(w)
+	encoder.Encode(configuration.Topics)
 }
 
 func topicListener(w http.ResponseWriter, req *http.Request) {
-	io.WriteString(w, "{\n")
 	topicName := req.URL.Path;
 	topicName = topicName[len("/topic/"):];
+	found := false
 	for i := range configuration.Topics {
 		topic := configuration.Topics[i]
 		if (topic.Name == topicName){
-			io.WriteString(w, "\t\ttopic : {\n");
-			io.WriteString(w, "\t\t\tName : \"" + topic.Name + "\",\n");
-			if (topic.Type == types.SIMPLE){
-				io.WriteString(w, "\t\t\tType : \"SIMPLE\",\n");
-			} else if (topic.Type == types.VIRTUAL){
-				io.WriteString(w, "\t\t\tType : \"VIRTUAL\",\n");
-				io.WriteString(w, "\t\t\tList : [\n");
-				for l := range topic.TopicList {
-					 io.WriteString(w, "\t\t\t\"" + topic.TopicList[l] + "\"");
-				}
-				io.WriteString(w, "\t\t\t]\n");
-			}
-			io.WriteString(w, "\t\t}\n")
+			encoder := json.NewEncoder(w)
+			encoder.Encode(topic)
+			found = true
 			break;
 		}
 	}
-	io.WriteString(w, "}\n")
+	if !found {
+		w.WriteHeader(404)
+	}
 }
 func instanceListListener(w http.ResponseWriter, req *http.Request){
-	
+	encoder := json.NewEncoder(w)
+	encoder.Encode(configuration.Instances)
 }
 func Listen(aConfiguration types.Configuration){
 	configuration = aConfiguration

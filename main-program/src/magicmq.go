@@ -28,6 +28,7 @@ func main() {
     appendTopic(types.NewTopic("tutu"))
     appendTopic(types.NewTopic("toto"))
     appendTopic(types.NewVirtualTopic("v-toto-tutu",[]string{"tutu","toto"}))
-    configuration.Instances.Add(types.NewInstance("www.instance.fr","9898"))
+    configuration.Instances.Add(types.NewInstance("192.168.0.5","1789"))
+    configuration.Instances.Add(types.NewInstance("192.168.0.4","1789"))
     web.Listen(configuration)
 }
