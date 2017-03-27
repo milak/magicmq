@@ -10,6 +10,7 @@ type Topic struct {
 	Name string
 	Type string
 	TopicList []string `json:"Topics,omitempty"`
+	Count int
 }
 func NewTopic(aName string) *Topic {
 	return &Topic{Name : aName, Type : SIMPLE}

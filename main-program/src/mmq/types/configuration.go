@@ -11,6 +11,6 @@ type Configuration struct {
 	Topics []*Topic
 	Instances InstanceList
 }
-func InitConfiguration() Configuration {
-	return Configuration{APP_VERSION : "0.1", WebDirectory : "web", WebAdminPort : "8080"}
+func InitConfiguration() *Configuration {
+	return &Configuration{APP_VERSION : "0.1", WebDirectory : "web", WebAdminPort : "8080"}
 }
