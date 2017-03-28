@@ -1,7 +1,7 @@
 package web
 
 import (
-	"log"
+	//"log"
 	"mmq/types"
     "net/http"
     "encoding/json"
@@ -21,7 +21,7 @@ func methodNotSupported(w http.ResponseWriter, aMethod string) {
 func infoListener(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(w)
-	encoder.Encode(struct{Version string;IP string;Port string}{Version : configuration.APP_VERSION, IP : "127.0.0.1", Port : configuration.WebAdminPort})
+	encoder.Encode(struct{Version string;IP string}{Version : configuration.Version, IP : "127.0.0.1"})
 }
 func topicListListener(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
@@ -54,7 +54,6 @@ func topicListener(w http.ResponseWriter, req *http.Request) {
 			for i := range configuration.Topics {
 				topic := configuration.Topics[i]
 				if (topic.Name == topicName){
-					topic.Count = store.Count(topic.Name)
 					w.WriteHeader(http.StatusOK)
 					encoder := json.NewEncoder(w)
 					encoder.Encode(topic)
@@ -75,14 +74,48 @@ func instanceListListener(w http.ResponseWriter, req *http.Request){
 	encoder.Encode(configuration.Instances)
 	w.WriteHeader(http.StatusOK)
 }
-func Listen(aConfiguration *types.Configuration, aStore *item.ItemStore){
-	configuration = aConfiguration
+func shutdownListener(w http.ResponseWriter, req *http.Request){
+	w.WriteHeader(http.StatusOK)
+	//http.DefaultServeMux.Shutdown() 
+}
+func StartHttpListener(aConfiguration *types.Configuration, aStore *item.ItemStore){
 	store = aStore
-	http.HandleFunc("/instance", instanceListListener)
-    http.HandleFunc("/topic", topicListListener)
-    http.HandleFunc("/topic/", topicListener)
-    http.HandleFunc("/item", itemListener)
-    http.HandleFunc("/info", infoListener)
-    http.Handle("/", http.FileServer(http.Dir(configuration.WebDirectory)))
-    log.Fatal(http.ListenAndServe(":"+configuration.WebAdminPort, nil))
+	configuration = aConfiguration
+	var port *string = nil
+	for s := range configuration.Services {
+		service := configuration.Services[s]
+		if !service.Active continue
+		if service.Name == "ADMIN" {
+			var root *string = nil
+			for p := range service.Parameters {
+				if service.Parameters[p].Name == "root" {
+					root = &service.Parameters[p].Value
+					break
+				}
+			}
+			if root == nil {
+				panic("Configuration error : missing root parameter for ADMIN service")
+			}
+			http.Handle("/", http.FileServer(http.Dir(*root)))
+		} else if service.Name == "REST" {
+			for p := range service.Parameters {
+				if service.Parameters[p].Name == "port" {
+					port = &service.Parameters[p].Value
+					break
+				}
+			}
+			if port == nil {
+				panic("Configuration error : missing port parameter for REST service")
+			}
+			http.HandleFunc("/instance", instanceListListener)
+		    http.HandleFunc("/topic", topicListListener)
+		    http.HandleFunc("/topic/", topicListener)
+		    http.HandleFunc("/item", itemListener)
+		    http.HandleFunc("/info", infoListener)
+		    http.HandleFunc("/shutdown", shutdownListener)
+		}
+	}
+	if port != nil {
+		http.ListenAndServe(":"+(*port), nil)
+	}
 }

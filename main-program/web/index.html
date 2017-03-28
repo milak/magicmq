@@ -1,11 +1,11 @@
 <html>
   <head>
-    <style src="css/style.css"></style>
     <script>
     </script>
     <title>Magic MQ</title>
+    <link rel="stylesheet" href="css/style.css">
   	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-  	<link rel="stylesheet" href="/resources/demos/style.css">
+  	
   	<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
   	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
   	<script>
@@ -24,13 +24,62 @@
 		    <li><a href="#tabs-3">Topic</a></li>
 		  </ul>
 		  <div id="tabs-1">
-		    <p></p>
+		    <p>
+		    COnfiguration
+		    <form>
+            <div class='select-radio'>
+              <label>Select Dropdown</label>
+              <select>
+                <option value='option1'>Option 1</option>
+                <option value='option2'>Option 2</option>
+                <option value='option3'>Option 3</option>
+              </select>
+              <label>
+                <input name='rgroup' type='radio' value='radio1' />
+                Radio 1
+              </label>
+              <label>
+                <input checked='checked' name='rgroup' type='radio' value='radio2' />
+                Radio 2
+              </label>
+              <label>
+                <input disabled='disabled' name='rgroup' type='radio' value='radio3' />
+                Radio 3
+              </label>
+            </div>
+            <div class='file-checkbox'>
+              <label>File Upload</label>
+              <input class='file' type='file' />
+              <label>
+                <input type='checkbox' value='check1' />
+                Checkbox 1
+              </label>
+              <label>
+                <input checked='checked' type='checkbox' value='check2' />
+                Checkbox 2
+              </label>
+              <label>
+                <input disabled='disabled' type='checkbox' value='check3' />
+                Checkbox 3
+              </label>
+            </div>
+          </form>
+          <div class='controls'>
+            <a rel="Annuler" class="btn" href="#">Annuler</a>
+            <a rel="Enregistrer" class="btn" href="#">Enregistrer</a>
+          </div>
+		    </p>
 		  </div>
 		  <div id="tabs-2">
 		    <p></p>
 		  </div>
 		  <div id="tabs-3">
-		    <p></p>
+		    <p><form action="/item" method="post">
+		    	Créer un item
+		    	Topics : <input name="topics" type="text" alt="lister les topics, séparés par des virgules (,)"/>
+		    	Value : <input name="value" type="text"/>
+		    	<input type="commit" value="Cr&eacute;er"/>
+		    </form></p>
 		  </div>
 		</div>
     </div>

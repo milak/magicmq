@@ -10,15 +10,13 @@ import (
     "mmq/item"
 )
 
-var configuration *types.Configuration = types.InitConfiguration()
+var configuration *types.Configuration
 
 var store *item.ItemStore = item.NewStore()
 
-func appendTopic(aTopic *types.Topic){
-	configuration.Topics = append(configuration.Topics,aTopic)
-}
 // The flag package provides a default help printer via -h switch
 var versionFlag *bool = flag.Bool("v", false, "Print the version number.")
+var configurationFileName *string = flag.String("f", "configuration.json", "The configuration file name")
 func pop(topic string){
 	fmt.Println("Topic : "+topic+" ( nb total = ",store.Count(topic),")")
     item := store.Pop(topic)
@@ -38,17 +36,19 @@ func main() {
     flag.Parse() // Scan the arguments list 
 	fmt.Println("Starting MagicMQ...")
     if *versionFlag {
-        fmt.Println("Version:", configuration.APP_VERSION)
+        fmt.Println("Version:", configuration.Version)
     }
+    configuration = types.InitConfiguration(*configurationFileName)
     //fmt.Println("nb total ",store.Count("test"))
-    store.Push(item.NewMemoryItem([]byte("Salut, ceci est un texte de quelques octets"),[]string{"test"}))
+    /*store.Push(item.NewMemoryItem([]byte("Salut, ceci est un texte de quelques octets"),[]string{"test"}))
     store.Push(item.NewMemoryItem([]byte("Un autre texte"),[]string{"test"}))
     store.Push(item.NewMemoryItem([]byte("Un texte de quelques mots"),[]string{"toto"}))
-    appendTopic(types.NewTopic("test"))
-    appendTopic(types.NewTopic("tutu"))
-    appendTopic(types.NewTopic("toto"))
-    appendTopic(types.NewVirtualTopic("v-toto-tutu",[]string{"tutu","toto"}))
-    configuration.Instances.Add(types.NewInstance("192.168.0.5","1789"))
-    configuration.Instances.Add(types.NewInstance("192.168.0.4","1789"))
-    web.Listen(configuration,store)
+    configuration.AddTopic(types.NewTopic("test"))
+    configuration.AddTopic(types.NewTopic("tutu"))
+    configuration.AddTopic(types.NewTopic("toto"))
+    configuration.AddTopic(types.NewVirtualTopic("v-toto-tutu",types.ORDERED,[]string{"tutu","toto"}))
+    configuration.AddInstance(types.NewInstance("192.168.0.5","1789"))
+    configuration.AddInstance(types.NewInstance("192.168.0.4","1789"))*/
+    web.StartSyncListener(configuration,store)
+    web.StartHttpListener(configuration,store)
 }
