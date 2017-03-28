@@ -1,0 +1,46 @@
+{
+	"Version": "0.1",
+	"Topics": [
+		{
+			"Name": "normal-topic",
+			"Type": "SIMPLE"
+		},
+		{
+			"Name": "urgent-topic",
+			"Type": "SIMPLE"
+		},
+		{
+			"Name": "topic",
+			"Type": "VIRTUAL",
+			"Topics": [
+				"urgent-topic",
+				"normal-topic"
+			],
+			"Strategy": "ORDERED"
+		}
+	],
+	"Services": [
+		{
+			"Name": "ADMIN",
+			"Comment": "This service opens web administration. It requires REST service. Parameter : 'root' directory containing admin web files. Can be replaced by apache httpd.",
+			"Active": true,
+			"Parameters": [
+				{
+					"Name": "root",
+					"Value": "web"
+				}
+			]
+		},
+		{
+			"Name": "REST",
+			"Comment": "This service opens REST API. Parameter : 'port' the listening port.",
+			"Active": true,
+			"Parameters": [
+				{
+					"Name": "port",
+					"Value": "8080"
+				}
+			]
+		}
+	]
+}
