@@ -1,41 +1,55 @@
-package web
+package service
 
 import (
-	"mmq.types"
+	"mmq/conf"
+	"mmq/item"
+	"net"
 )
-var running = true
-var configuration *types.Configuration
-func doListen (aPort string) {
+type SyncService struct {
+	running bool
+	configuration *conf.Configuration
+}
+func NewSyncService (aConfiguration *conf.Configuration, aStore *item.ItemStore) *SyncService{
+	return &SyncService{running : true, configuration : aConfiguration}
+}
+func (this *SyncService) doListen (aPort string) {
 	ln, err := net.Listen("tcp", ":"+aPort)
 	if err != nil {
 		// handle error
 	} else {
-		for running {
+		for this.running {
 			conn, err := ln.Accept()
 			if err != nil {
 				// TODO handle error
 			} else {
-				go handleConnection(conn)
+				go this.handleConnection(conn)
 			}
 		}
 	}
 }
-func StartSyncListener (aConfiguration *types.Configuration, aStore *item.ItemStore){
-	configuration = aConfiguration
-	for s := range configuration.Services {
-		service := configuration.Services[s]
-		if !service.Active continue
+func (this *SyncService) handleConnection (aConn net.Conn){
+	aConn.Write([]byte("HELLO"))
+	aConn.Write([]byte("BYE"))
+	aConn.Close()
+}
+func (this *SyncService) Start (){
+	for s := range this.configuration.Services {
+		service := this.configuration.Services[s]
+		if !service.Active {
+			continue
+		}
 		if service.Name == "SYNC" {
 			for p := range service.Parameters {
 				if service.Parameters[p].Name == "root" {
-					port := &service.Parameters[p].Value
-					go doListen(port)
+					port := service.Parameters[p].Value
+					this.running = true
+					go this.doListen(port)
 					break
 				}
 			}
 		}
 	}
 }
-func StopSyncListener (){
-	running = false
+func (this *SyncService) Stop (){
+	this.running = false
 }

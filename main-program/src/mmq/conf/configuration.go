@@ -1,4 +1,4 @@
-package types
+package conf
 
 import (
 	"os"
@@ -19,8 +19,8 @@ type Service struct {
 	Parameters 	[]Parameter `json:"Parameters,omitempty"`
 }
 type Parameter struct {
-	Name string
-	Value string
+	Name 		string
+	Value 		string
 }
 func (this *Configuration) AddInstance(aInstance *Instance){
 	this.Instances = append(this.Instances,aInstance)
@@ -29,6 +29,21 @@ func (this *Configuration) AddInstance(aInstance *Instance){
 func (this *Configuration) AddTopic(aTopic *Topic){
 	this.Topics = append(this.Topics,aTopic)
 	this.save()
+}
+func (this *Configuration) RemoveTopic(aTopicName string) bool {
+	found := false
+	for i := range this.Topics {
+		topic := this.Topics[i]
+		if (topic.Name == aTopicName){
+			this.Topics = append(this.Topics[0:i],this.Topics[i+1:]...)
+			found = true
+			break;
+		}
+	}
+	if found {
+		this.save()
+	}
+	return found
 }
 func (this *Configuration) save(){
 	file,err := os.Create(this.fileName)
@@ -71,6 +86,9 @@ func InitConfiguration(aFileName string) *Configuration {
 		defer file.Close()
 		decoder := json.NewDecoder(file)
 		decoder.Decode(&result)
+		if result.Topics == nil {
+			result.Topics = make ([]*Topic,0)
+		}
 	}
 	return &result
 }
