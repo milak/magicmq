@@ -60,7 +60,7 @@ func InitConfiguration(aFileName string) *Configuration {
 	if _, err := os.Stat(aFileName); os.IsNotExist(err) {
 		result.Services = make([]Service,3)
 		result.Services[0].Name = "ADMIN"
-		result.Services[0].Comment = "This service opens web adminstration. It requires REST service. Parameter : 'root' directory containing admin web files. Can be replaced by apache httpd."
+		result.Services[0].Comment = "This service opens web administration. It requires REST service. Parameter : 'root' directory containing admin web files. Can be replaced by apache httpd."
 		result.Services[0].Active = true
 		result.Services[0].Parameters = make([]Parameter,1)
 		result.Services[0].Parameters[0].Name = "root"
