@@ -81,10 +81,21 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 	}
 }
 func (this *HttpService) instanceListListener(w http.ResponseWriter, req *http.Request){
+	w.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(w)
 	encoder.Encode(this.configuration.Instances)
-	w.WriteHeader(http.StatusOK)
 }
+func (this *HttpService) instanceListener(w http.ResponseWriter, req *http.Request){
+	if req.Method == http.MethodDelete {
+		this.notFound(w)
+		/*if !this.configuration.RemoveTopic(topicName){
+			this.notFound(w)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}*/
+	}
+}
+
 func (this *HttpService) shutdownListener(w http.ResponseWriter, req *http.Request){
 	w.WriteHeader(http.StatusOK)
 	//http.DefaultServeMux.Shutdown() 
@@ -119,6 +130,7 @@ func (this *HttpService) Start(){
 				panic("Configuration error : missing port parameter for REST service")
 			}
 			http.HandleFunc("/instance", 	this.instanceListListener)
+			http.HandleFunc("/instance/", 	this.instanceListener)
 		    http.HandleFunc("/topic", 		this.topicListListener)
 		    http.HandleFunc("/topic/", 		this.topicListener)
 		    http.HandleFunc("/item", 		this.itemListener)

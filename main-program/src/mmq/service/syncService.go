@@ -4,6 +4,7 @@ import (
 	"mmq/conf"
 	"mmq/item"
 	"net"
+	"log"
 )
 type SyncService struct {
 	running bool
@@ -13,6 +14,7 @@ func NewSyncService (aConfiguration *conf.Configuration, aStore *item.ItemStore)
 	return &SyncService{running : true, configuration : aConfiguration}
 }
 func (this *SyncService) doListen (aPort string) {
+	log.Println("SyncService listening on port",aPort,"...")
 	ln, err := net.Listen("tcp", ":"+aPort)
 	if err != nil {
 		// handle error
@@ -22,6 +24,7 @@ func (this *SyncService) doListen (aPort string) {
 			if err != nil {
 				// TODO handle error
 			} else {
+				log.Println("SyncService caught a call")
 				go this.handleConnection(conn)
 			}
 		}

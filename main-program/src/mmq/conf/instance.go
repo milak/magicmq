@@ -5,11 +5,13 @@ import (
 )
 
 type Instance struct {
-	Host string
-	Port string
+	Name string
+	host string
+	port string
+	Connected bool
 }
 func NewInstance(aHost string, aPort string) *Instance{
-	return &Instance {Host : aHost, Port: aPort}
+	return &Instance {Name : aHost+":"+aPort, host : aHost, port: aPort, Connected : false}
 }
 func (this *Instance) Connect() {
 	

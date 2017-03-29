@@ -11,19 +11,21 @@ const VIRTUAL = "VIRTUAL"
  */
 const ROUND_ROBIN 	= "ROUND ROBIN"
 const ORDERED 		= "ORDERED"
+const STRATEGY 		= "strategy"
 
 type Topic struct {
 	Name string
 	Type string
 	TopicList []string `json:"Topics,omitempty"`
-	Strategy string `json:"Strategy,omitempty"`
+	Parameters 	[]Parameter `json:"Parameters,omitempty"`
 }
 func NewTopic(aName string) *Topic {
 	return &Topic{Name : aName, Type : SIMPLE}
 }
 func NewVirtualTopic(aName string, aStrategy string, aTopicList []string) *Topic {
-	return &Topic{Name : aName, Type : VIRTUAL, Strategy : aStrategy, TopicList : aTopicList}
+	result := Topic{Name : aName, Type : VIRTUAL, TopicList : aTopicList}
+	result.Parameters = make([]Parameter,1)
+	result.Parameters[0].Name = STRATEGY
+	result.Parameters[0].Value = ORDERED
+	return &result
 }
-/**func (slice ByteSlice) Append(data []byte) []byte {
-    // Body exactly the same as the Append function defined above.
-}*/

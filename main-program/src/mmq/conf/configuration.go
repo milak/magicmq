@@ -72,7 +72,7 @@ func InitConfiguration(aFileName string) *Configuration {
 		result.Services[1].Parameters[0].Name = "port"
 		result.Services[1].Parameters[0].Value = "8080"
 		result.Services[2].Name = "SYNC"
-		result.Services[2].Comment = "This service opens SYNC port for cluterisation. Parameter : 'port' the listening port."
+		result.Services[2].Comment = "This service opens SYNC port for clusterisation. Parameter : 'port' the listening port."
 		result.Services[2].Active = true
 		result.Services[2].Parameters = make([]Parameter,1)
 		result.Services[2].Parameters[0].Name = "port"

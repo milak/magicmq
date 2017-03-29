@@ -39,16 +39,6 @@ func main() {
         fmt.Println("Version:", configuration.Version)
     }
     configuration = conf.InitConfiguration(*configurationFileName)
-    //fmt.Println("nb total ",store.Count("test"))
-    /*store.Push(item.NewMemoryItem([]byte("Salut, ceci est un texte de quelques octets"),[]string{"test"}))
-    store.Push(item.NewMemoryItem([]byte("Un autre texte"),[]string{"test"}))
-    store.Push(item.NewMemoryItem([]byte("Un texte de quelques mots"),[]string{"toto"}))
-    configuration.AddTopic(conf.NewTopic("test"))
-    configuration.AddTopic(conf.NewTopic("tutu"))
-    configuration.AddTopic(conf.NewTopic("toto"))
-    configuration.AddTopic(conf.NewVirtualTopic("v-toto-tutu",conf.ORDERED,[]string{"tutu","toto"}))
-    configuration.AddInstance(conf.NewInstance("192.168.0.5","1789"))
-    configuration.AddInstance(conf.NewInstance("192.168.0.4","1789"))*/
     httpService := service.NewHttpService(configuration,store)
     httpService.Start()
     syncService := service.NewSyncService(configuration,store)
