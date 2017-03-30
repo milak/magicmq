@@ -2,18 +2,16 @@ package service
 
 import (
 	//"log"
-	"mmq/conf"
-    "net/http"
     "encoding/json"
-    "mmq/item"
+	"mmq/env"
+    "net/http"
     "strings"
 )
 type HttpService struct {
-	configuration 	*conf.Configuration
-	store 			*item.ItemStore
+	context 	*env.Context
 }
-func NewHttpService (aConfiguration *conf.Configuration, aStore *item.ItemStore) *HttpService {
-	return &HttpService{configuration : aConfiguration, store : aStore}
+func NewHttpService (aContext *env.Context) *HttpService {
+	return &HttpService{context : aContext}
 }
 func (this *HttpService) notFound(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNotFound)
@@ -26,12 +24,12 @@ func (this *HttpService) methodNotSupported(w http.ResponseWriter, aMethod strin
 func (this *HttpService) infoListener(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(w)
-	encoder.Encode(struct{Version string;IP string}{Version : this.configuration.Version, IP : "127.0.0.1"})
+	encoder.Encode(struct{Version string;IP string}{Version : this.context.Configuration.Version, IP : "127.0.0.1"})
 }
 func (this *HttpService) topicListListener(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(w)
-	encoder.Encode(this.configuration.Topics)
+	encoder.Encode(this.context.Configuration.Topics)
 }
 func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request){
 	if req.Method == http.MethodPost {
@@ -46,7 +44,7 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 	if req.Method == http.MethodGet {
 		if strings.HasSuffix(topicName,"/pop") {
 			topicName = topicName[0:len("/pop")]
-			item := this.store.Pop(topicName)
+			item := this.context.Store.Pop(topicName)
 			if item == nil {
 				this.notFound(w)
 			} else {
@@ -56,8 +54,8 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 			}
 		} else {
 			found := false
-			for i := range this.configuration.Topics {
-				topic := this.configuration.Topics[i]
+			for i := range this.context.Configuration.Topics {
+				topic := this.context.Configuration.Topics[i]
 				if (topic.Name == topicName){
 					w.WriteHeader(http.StatusOK)
 					encoder := json.NewEncoder(w)
@@ -71,7 +69,7 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 			}
 		}
 	} else if req.Method == http.MethodDelete {
-		if !this.configuration.RemoveTopic(topicName){
+		if !this.context.Configuration.RemoveTopic(topicName){
 			this.notFound(w)
 		} else {
 			w.WriteHeader(http.StatusOK)
@@ -83,7 +81,7 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 func (this *HttpService) instanceListListener(w http.ResponseWriter, req *http.Request){
 	w.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(w)
-	encoder.Encode(this.configuration.Instances)
+	encoder.Encode(this.context.Configuration.Instances)
 }
 func (this *HttpService) instanceListener(w http.ResponseWriter, req *http.Request){
 	if req.Method == http.MethodDelete {
@@ -102,8 +100,8 @@ func (this *HttpService) shutdownListener(w http.ResponseWriter, req *http.Reque
 }
 func (this *HttpService) Start(){
 	var port *string = nil
-	for s := range this.configuration.Services {
-		service := this.configuration.Services[s]
+	for s := range this.context.Configuration.Services {
+		service := this.context.Configuration.Services[s]
 		if !service.Active {
 			continue
 		}
@@ -139,6 +137,6 @@ func (this *HttpService) Start(){
 		}
 	}
 	if port != nil {
-		http.ListenAndServe(":"+(*port), nil)
+		go http.ListenAndServe(":"+(*port), nil)
 	}
 }

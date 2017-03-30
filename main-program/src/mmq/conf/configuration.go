@@ -23,8 +23,19 @@ type Parameter struct {
 	Value 		string
 }
 func (this *Configuration) AddInstance(aInstance *Instance){
+	if this.GetInstance(aInstance.Name()) != nil {
+		return
+	}
 	this.Instances = append(this.Instances,aInstance)
 	this.save()
+}
+func (this *Configuration) GetInstance(aName string) *Instance{
+	for _,instance := range this.Instances {
+		if instance.Name() == aName {
+			return instance
+		}
+	}
+	return nil
 }
 func (this *Configuration) AddTopic(aTopic *Topic){
 	this.Topics = append(this.Topics,aTopic)
