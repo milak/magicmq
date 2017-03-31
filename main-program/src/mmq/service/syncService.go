@@ -78,6 +78,7 @@ func splitCommand(line []byte) (command string ,arguments []byte, remain []byte)
 	return command, arguments, remain
 }
 func (this *SyncService) keepConnected(aInstanceConnection *instanceConnection){
+	var byteBuffer *bytes.Buffer
 	buffer := make([]byte,1000)
 	connection := (*aInstanceConnection.connection)
 	instance := aInstanceConnection.instance
@@ -86,17 +87,82 @@ func (this *SyncService) keepConnected(aInstanceConnection *instanceConnection){
 		instance.Connected = false
 		delete(this.connections,instance.Name())
 	}()
+	var command string
+	var arguments, remain []byte
 	for this.context.Running {
 		time.Sleep(1 * time.Second)
-		count,err := connection.Read(buffer)
-		if err != nil {
-			this.logger.Println("Lost connection with",instance.Name(),err)
-			break
+		if len(remain) > 0 {
+			buffer = remain
+		} else {
+			count,err := connection.Read(buffer)
+			if err != nil {
+				this.logger.Println("Lost connection with",instance.Name(),err)
+				break
+			}
+			buffer = buffer[0:count]
 		}
-		command, arguments, remain := splitCommand(buffer[0:count])
-		this.logger.Println("Received command " + command,arguments,remain)
+		command, arguments, remain = splitCommand(buffer)
+		this.logger.Println("Received command " + command)
+		if command == "HELLO" { // On est côté appelant, on reçoit la réponse de l'appelé, on lui envoie la configuration
+			this.sendConfiguration(aInstanceConnection)
+		} else if command == "INSTANCES" {
+			var newInstances []conf.Instance
+			byteBuffer = bytes.NewBuffer(arguments)
+			decoder := json.NewDecoder(byteBuffer)
+			decoder.Decode(&newInstances)
+			for _,instance := range newInstances {
+				this.logger.Println("Received instance :",instance)
+				if (instance.Host == this.host) && (instance.Port == this.port) {
+					this.logger.Println("Skipped instance cause it is me :)")
+					continue
+				}
+				instance.Connected = false // ensure the Instance will not be considered as connected
+				this.context.Configuration.AddInstance(&instance)
+				this.logger.Println("Added instance :",instance)
+			}
+		} else if command == "TOPICS" {
+			var distributedTopics []conf.Topic
+			byteBuffer = bytes.NewBuffer(arguments)
+			decoder := json.NewDecoder(byteBuffer)
+			decoder.Decode(&distributedTopics)
+			for _,topic := range distributedTopics {
+				this.logger.Println("Received topic :",topic)
+			}
+		} else if command == "ERROR" {
+			this.logger.Println("Received ERROR :",arguments)
+		} else {
+			this.logger.Println("Not supported command")
+			sendCommand("ERROR",[]byte("NOT SUPPORTED COMMAND"),*aInstanceConnection.connection)
+		}
 	}
 }
+/**
+ * Send configuration to other side :
+ *   * the known instances
+ *   * the distributed topics
+ */
+func (this *SyncService) sendConfiguration(aInstanceConnection *instanceConnection){
+	this.logger.Println("Sending configuration")
+	var buffer bytes.Buffer
+	encoder := json.NewEncoder(&buffer)
+	encoder.Encode(this.context.Configuration.Instances)
+	sendCommand("INSTANCES",buffer.Bytes(),*aInstanceConnection.connection)
+	buffer.Reset()
+	var distibutedTopics []*conf.Topic
+	for _,topic := range this.context.Configuration.Topics {
+		if topic.IsDistributed() {
+			distibutedTopics = append(distibutedTopics,topic)
+		}
+	}
+	if len (distibutedTopics) > 0 {
+		encoder.Encode(distibutedTopics)
+		this.logger.Println("Sending topics ", string(buffer.Bytes()))
+		sendCommand("TOPICS",buffer.Bytes(),*aInstanceConnection.connection)
+	}
+}
+/**
+ * Process the connection when called by a remote node.
+ */
 func (this *SyncService) handleConnection (aConn net.Conn){
 	this.host,_,_ = net.SplitHostPort(aConn.LocalAddr().String())
 	this.logger.Println("Processing call")
@@ -130,9 +196,14 @@ func (this *SyncService) handleConnection (aConn net.Conn){
 		this.context.Configuration.AddInstance(instance)
 	}
 	instance.Connected = true
-	sendCommand("HELLO",[]byte(this.host+":"+this.port),aConn)
+	for len(remain) > 0 {
+		command, arguments, remain = splitCommand(remain)
+		this.logger.Println("Received command " + command,arguments,remain)
+	}
+	sendCommand("HELLO",[]byte(this.host+":"+this.port),aConn) // TODO échanger leur numéros de version
 	instanceConnection := newInstanceConnection(instance,&aConn)
 	this.connections[instance.Name()] = instanceConnection
+	this.sendConfiguration(instanceConnection)
 	this.keepConnected(instanceConnection)
 	// TODO : gerer le fait que les deux peuvent essayer de se connecter en même temps, il y aura alors deux connections entre eux
 }
@@ -155,14 +226,10 @@ func (this *SyncService) scanInstances() {
 				this.logger.Println("Connection successful")
 				this.host,_,_ = net.SplitHostPort(conn.LocalAddr().String())
 				sendCommand("HELLO",[]byte(this.host+":"+this.port),conn)
-				var buffer bytes.Buffer
-				encoder := json.NewEncoder(&buffer)
-				encoder.Encode(this.context.Configuration.Instances)
-				sendCommand("INSTANCES",buffer.Bytes(),conn)
 				instance.Connected = true
 				instanceConnection := newInstanceConnection(instance,&conn)
 				this.connections[instance.Name()] = instanceConnection
-				this.keepConnected(instanceConnection)
+				go this.keepConnected(instanceConnection)
 			}
 		}
 		time.Sleep(10 * time.Second)

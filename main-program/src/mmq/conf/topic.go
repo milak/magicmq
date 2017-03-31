@@ -12,7 +12,9 @@ const VIRTUAL = "VIRTUAL"
 const ROUND_ROBIN 	= "ROUND ROBIN"
 const ORDERED 		= "ORDERED"
 const STRATEGY 		= "strategy"
-
+const PARAMETER_DISTRIBUTED = "Distributed"
+const DISTRIBUTED_NO 		= "NO"
+const DISTRIBUTED_ALL 		= "ALL" 
 type Topic struct {
 	Name string
 	Type string
@@ -28,4 +30,12 @@ func NewVirtualTopic(aName string, aStrategy string, aTopicList []string) *Topic
 	result.Parameters[0].Name = STRATEGY
 	result.Parameters[0].Value = ORDERED
 	return &result
+}
+func (this *Topic) IsDistributed() bool {
+	for _,parameter := range this.Parameters {
+		if parameter.Name == PARAMETER_DISTRIBUTED {
+			return parameter.Value != DISTRIBUTED_NO
+		}
+	}
+	return false
 }

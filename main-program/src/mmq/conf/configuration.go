@@ -100,6 +100,10 @@ func InitConfiguration(aFileName string) *Configuration {
 		if result.Topics == nil {
 			result.Topics = make ([]*Topic,0)
 		}
+		// Initialiser convenablement les instances à non connectées
+		for _,instance := range result.Instances {
+			instance.Connected = false
+		}
 	}
 	return &result
 }
