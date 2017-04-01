@@ -35,8 +35,8 @@ func main() {
         fmt.Println("Version:"/**, configuration.Version*/)
     }
     context := *env.NewContext()
-    context.Configuration 	= *conf.InitConfiguration(*configurationFileName)
-    context.Store 			= *item.NewStore()
+    context.Configuration 	= conf.InitConfiguration(*configurationFileName)
+    context.Store 			= item.NewStore()
     httpService := service.NewHttpService(&context)
     httpService.Start()
     syncService := service.NewSyncService(&context)
