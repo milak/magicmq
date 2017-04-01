@@ -3,8 +3,9 @@ package conf
 import (
 	"os"
 	"encoding/json"
+	"fmt"
 )
-const APP_VERSION = "0.1"
+const APP_VERSION = "0.1" // The version of the current application
 type Configuration struct {
 	Version 	string
 	Topics 		[]*Topic 		`json:"Topics,omitempty"`
@@ -22,12 +23,14 @@ type Parameter struct {
 	Name 		string
 	Value 		string
 }
-func (this *Configuration) AddInstance(aInstance *Instance){
+func (this *Configuration) AddInstance(aInstance *Instance) bool{
 	if this.GetInstance(aInstance.Name()) != nil {
-		return
+		return false
 	}
+	fmt.Println("configuration.go: Adding instance",aInstance)
 	this.Instances = append(this.Instances,aInstance)
 	this.save()
+	return true
 }
 func (this *Configuration) GetInstance(aName string) *Instance{
 	for _,instance := range this.Instances {
@@ -37,10 +40,31 @@ func (this *Configuration) GetInstance(aName string) *Instance{
 	}
 	return nil
 }
-func (this *Configuration) AddTopic(aTopic *Topic){
+/**
+ * Add a topic in the list
+ */
+func (this *Configuration) AddTopic(aTopic *Topic) bool {
+	if this.GetTopic(aTopic.Name) != nil {
+		return false
+	}
 	this.Topics = append(this.Topics,aTopic)
 	this.save()
+	return true
 }
+/**
+ * Get a topic by name
+ */
+func (this *Configuration) GetTopic(aName string) *Topic {
+	for _,topic := range this.Topics {
+		if topic.Name == aName {
+			return topic
+		}
+	}
+	return nil
+}
+/**
+ * Remove a topic by name
+ */
 func (this *Configuration) RemoveTopic(aTopicName string) bool {
 	found := false
 	for i := range this.Topics {
@@ -56,6 +80,9 @@ func (this *Configuration) RemoveTopic(aTopicName string) bool {
 	}
 	return found
 }
+/**
+ * Swap the configuration in file
+ */
 func (this *Configuration) save(){
 	file,err := os.Create(this.fileName)
 	if err != nil {
@@ -66,6 +93,9 @@ func (this *Configuration) save(){
 	encoder.SetIndent("", "\t")
 	encoder.Encode(this)
 }
+/**
+ * Constructor of Configuration if the file exists, the configuration is loaded, if the file doesn't exist, the file is created with default configuration
+ */
 func InitConfiguration(aFileName string) *Configuration {
 	result := Configuration{Version 		: APP_VERSION,fileName 		: aFileName}
 	if _, err := os.Stat(aFileName); os.IsNotExist(err) {
@@ -100,7 +130,10 @@ func InitConfiguration(aFileName string) *Configuration {
 		if result.Topics == nil {
 			result.Topics = make ([]*Topic,0)
 		}
-		// Initialiser convenablement les instances à non connectées
+		if result.Instances == nil {
+			result.Instances = make ([]*Instance,0)
+		}
+		// Initialiser convenablement les instances à "non connectées"
 		for _,instance := range result.Instances {
 			instance.Connected = false
 		}
