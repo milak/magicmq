@@ -41,6 +41,26 @@ func (this *Configuration) GetInstance(aName string) *Instance{
 	return nil
 }
 /**
+ * Remove a instance by name
+ */
+func (this *Configuration) RemoveInstance(aInstanceName string) *Instance {
+	found := false
+	fmt.Println("RemoveInstance",aInstanceName)
+	var instance *Instance
+	for i := range this.Instances {
+		instance = this.Instances[i]
+		if (instance.Name() == aInstanceName){
+			this.Instances = append(this.Instances[0:i],this.Instances[i+1:]...)
+			found = true
+			break;
+		}
+	}
+	if found {
+		this.save()
+	}
+	return instance
+}
+/**
  * Add a topic in the list
  */
 func (this *Configuration) AddTopic(aTopic *Topic) bool {

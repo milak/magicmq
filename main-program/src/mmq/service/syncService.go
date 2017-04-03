@@ -37,7 +37,6 @@ type SyncService struct {
 	context 	*env.Context					// a reference to the context, usefull to get accès to store, logger and configuration
 	listener 	net.Listener					// a reference to the listener when doListen has been called
 	port 		string 							// will be obtained via configuration
-	host		string 							// will be obtained once connected, not sure it is operationnal
 	logger		*log.Logger						// the logger obtained from context, it is copied here for code readability reason
 	connections	map[string]*instanceConnection	// a map that links instances to opened net connection
 }
@@ -45,9 +44,21 @@ type SyncService struct {
  * Constructor for the SyncService class
  */
 func NewSyncService (aContext *env.Context) *SyncService {
-	result := SyncService{running : true, context : aContext, logger : aContext.Logger}
+	result := &SyncService{running : true, context : aContext, logger : aContext.Logger}
 	result.connections = make(map[string]*instanceConnection)
-	return &result
+	aContext.AddContextListener(result)
+	return result
+}
+func (this *SyncService) TopicAdded (aTopic *conf.Topic) {
+	
+}
+func (this *SyncService) InstanceRemoved (aInstance *conf.Instance) {
+	if aInstance.Connected {
+		var instanceConnection = this.connections[aInstance.Name()]
+		if instanceConnection != nil {
+			(*instanceConnection.connection).Close()
+		}
+	}
 }
 /**
  * Listen remote Instances call
@@ -211,7 +222,7 @@ func (this *SyncService) keepConnected(aInstanceConnection *instanceConnection){
 			decoder.Decode(&newInstances)
 			for _,newInstance := range newInstances {
 				this.logger.Println("Received instance :",newInstance)
-				if (newInstance.Host == this.host) && (newInstance.Port == this.port) {
+				if (newInstance.Host == this.context.Host) && (newInstance.Port == this.port) {
 					this.logger.Println("Skipped instance cause it is me :)")
 					continue
 				} else {
@@ -271,7 +282,7 @@ func (this *SyncService) sendConfiguration(aInstanceConnection *instanceConnecti
  * Process the connection when called by a remote node.
  */
 func (this *SyncService) handleConnection (aConn net.Conn){
-	this.host,_,_ = net.SplitHostPort(aConn.LocalAddr().String())
+	this.context.Host,_,_ = net.SplitHostPort(aConn.LocalAddr().String())
 	this.logger.Println("Processing call")
 	buffer := make([]byte,1000)
 	count,err := aConn.Read(buffer)
@@ -315,7 +326,7 @@ func (this *SyncService) handleConnection (aConn net.Conn){
 		command, arguments, remain, needMore = this.splitCommand(remain)
 		this.logger.Println("Received command " + command,arguments,remain,needMore)
 	}
-	this.sendCommand("HELLO",[]byte(this.host+":"+this.port),aConn) // TODO échanger leur numéros de version
+	this.sendCommand("HELLO",[]byte(this.context.Host+":"+this.port),aConn) // TODO échanger leur numéros de version
 	instanceConnection := newInstanceConnection(instance,&aConn)
 	this.connections[instance.Name()] = instanceConnection
 	this.sendConfiguration(instanceConnection)
@@ -329,7 +340,6 @@ func (this *SyncService) scanInstances() {
 	time.Sleep(4 * time.Second)
 	for this.running {
 		for _,instance := range this.context.Configuration.Instances {
-			this.logger.Println("Scanning",instance)
 			if !instance.Connected {
 				host := instance.Host+":"+instance.Port
 				this.logger.Println("Trying to connect to " + host)
@@ -339,8 +349,8 @@ func (this *SyncService) scanInstances() {
 					continue
 				} else {
 					this.logger.Println("Connection successful")
-					this.host,_,_ = net.SplitHostPort(conn.LocalAddr().String())
-					this.sendCommand("HELLO",[]byte(this.host+":"+this.port),conn)
+					this.context.Host,_,_ = net.SplitHostPort(conn.LocalAddr().String())
+					this.sendCommand("HELLO",[]byte(this.context.Host+":"+this.port),conn)
 					instance.Connected = true
 					instanceConnection := newInstanceConnection(instance,&conn)
 					this.connections[instance.Name()] = instanceConnection

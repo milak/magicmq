@@ -9,6 +9,7 @@ import (
 )
 type HttpService struct {
 	context 	*env.Context
+	port		string
 }
 func NewHttpService (aContext *env.Context) *HttpService {
 	return &HttpService{context : aContext}
@@ -22,14 +23,32 @@ func (this *HttpService) methodNotSupported(w http.ResponseWriter, aMethod strin
 	w.Write([]byte("Sorry "+string(http.StatusMethodNotAllowed)+" error : method '"+aMethod+"' not allowed"))
 }
 func (this *HttpService) infoListener(w http.ResponseWriter, req *http.Request) {
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	req.ParseForm()
+	callback := req.Form["callback"]
 	w.WriteHeader(http.StatusOK)
+	if callback != nil {
+		w.Write([]byte(callback[0]+"("))
+	}
 	encoder := json.NewEncoder(w)
-	encoder.Encode(struct{Version string;IP string}{Version : this.context.Configuration.Version, IP : "127.0.0.1"})
+	encoder.Encode(struct{Version string;Host string; Port string; Name string}{Version : this.context.Configuration.Version, Host : this.context.Host, Port : this.port, Name : this.context.Host+":"+this.port})
+	if callback != nil {
+		w.Write([]byte(")"))
+	}
 }
 func (this *HttpService) topicListListener(w http.ResponseWriter, req *http.Request) {
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	req.ParseForm()
+	callback := req.Form["callback"]
 	w.WriteHeader(http.StatusOK)
+	if callback != nil {
+		w.Write([]byte(callback[0]+"("))
+	}
 	encoder := json.NewEncoder(w)
 	encoder.Encode(this.context.Configuration.Topics)
+	if callback != nil {
+		w.Write([]byte(")"))
+	}
 }
 func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request){
 	if req.Method == http.MethodPost {
@@ -84,18 +103,22 @@ func (this *HttpService) instanceListListener(w http.ResponseWriter, req *http.R
 	encoder.Encode(this.context.Configuration.Instances)
 }
 func (this *HttpService) instanceListener(w http.ResponseWriter, req *http.Request){
+	instanceName := req.URL.Path;
+	instanceName = instanceName[len("/instance/"):];
 	if req.Method == http.MethodDelete {
-		this.notFound(w)
-		/*if !this.configuration.RemoveTopic(topicName){
+		removedInstance := this.context.Configuration.RemoveInstance(instanceName)
+		if removedInstance == nil {
 			this.notFound(w)
 		} else {
+			this.context.FireInstanceRemoved(removedInstance)
 			w.WriteHeader(http.StatusOK)
-		}*/
+		}
 	}
 }
 
 func (this *HttpService) shutdownListener(w http.ResponseWriter, req *http.Request){
 	w.WriteHeader(http.StatusOK)
+	this.context.Running = false
 	//http.DefaultServeMux.Shutdown() 
 }
 func (this *HttpService) Start(){
@@ -137,6 +160,7 @@ func (this *HttpService) Start(){
 		}
 	}
 	if port != nil {
-		go http.ListenAndServe(":"+(*port), nil)
+		this.port = *port
+		go http.ListenAndServe(":"+this.port, nil)
 	}
 }

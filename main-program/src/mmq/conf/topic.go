@@ -1,7 +1,7 @@
 package conf
 
 import (
-
+	"time"
 )
 const SIMPLE = "SIMPLE"
 const VIRTUAL = "VIRTUAL"
@@ -14,15 +14,19 @@ const ORDERED 		= "ORDERED"
 const STRATEGY 		= "strategy"
 const PARAMETER_DISTRIBUTED = "Distributed"
 const DISTRIBUTED_NO 		= "NO"
-const DISTRIBUTED_ALL 		= "ALL" 
+const DISTRIBUTED_ALL 		= "ALL"
+func makeTimestamp() int64 {
+    return time.Now().UnixNano() / int64(time.Millisecond)
+}
 type Topic struct {
-	Name string
-	Type string
-	TopicList []string `json:"Topics,omitempty"`
+	TimeStamp 	int64 	// last update time will be used to resolve synchonisation conflict between instances 
+	Name 		string
+	Type 		string
+	TopicList 	[]string `json:"Topics,omitempty"`
 	Parameters 	[]Parameter `json:"Parameters,omitempty"`
 }
 func NewTopic(aName string) *Topic {
-	return &Topic{Name : aName, Type : SIMPLE}
+	return &Topic{TimeStamp : makeTimestamp(), Name : aName, Type : SIMPLE}
 }
 func NewVirtualTopic(aName string, aStrategy string, aTopicList []string) *Topic {
 	result := Topic{Name : aName, Type : VIRTUAL, TopicList : aTopicList}

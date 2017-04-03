@@ -15,6 +15,3 @@ func NewInstance(aHost string, aPort string) *Instance{
 func (this *Instance) Name() string {
 	return this.Host+":"+this.Port
 }
-func (this *Instance) Connect() {
-	
-}
