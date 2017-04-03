@@ -2,3 +2,20 @@
  */
 body {
 }
+table {
+	border : 1px outset;
+	width : 80%;
+}
+table thead tr {
+	background-color: #007fff;
+	color: white;
+}
+table tbody tr {
+	border: 1px;
+}
+table tbody tr:HOVER {
+	border: 1px;
+	background-color: #0099ff;
+	color: white;
+	cursor: pointer;
+}

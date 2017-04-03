@@ -1,89 +1,100 @@
 <html>
-  <head>
-    <script>
-    </script>
-    <title>Magic MQ</title>
-    <link rel="stylesheet" href="css/style.css">
-  	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-  	
-  	<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
-  	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
-  	<script>
-  		$( function() {
-    		$( "#tabs" ).tabs();
-  		} );
-  </script>
+<head>
+	<title>Magic MQ</title>
+	<link rel="stylesheet" href="css/style.css"/>
+	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"/>
+	<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+	<script type="text/javascript" src="script/util.js"></script>
+	<script type="text/javascript" src="script/mmq.js"></script>
 </head>
-  </head>
-  <body>
-    <div>
-    	<div id="tabs">
-		  <ul>
-		    <li><a href="#tabs-1">Information</a></li>
-		    <li><a href="#tabs-2">Topics</a></li>
-		    <li><a href="#tabs-3">Topic</a></li>
-		  </ul>
-		  <div id="tabs-1">
-		    <p>
-		    COnfiguration
-		    <form>
-            <div class='select-radio'>
-              <label>Select Dropdown</label>
-              <select>
-                <option value='option1'>Option 1</option>
-                <option value='option2'>Option 2</option>
-                <option value='option3'>Option 3</option>
-              </select>
-              <label>
-                <input name='rgroup' type='radio' value='radio1' />
-                Radio 1
-              </label>
-              <label>
-                <input checked='checked' name='rgroup' type='radio' value='radio2' />
-                Radio 2
-              </label>
-              <label>
-                <input disabled='disabled' name='rgroup' type='radio' value='radio3' />
-                Radio 3
-              </label>
-            </div>
-            <div class='file-checkbox'>
-              <label>File Upload</label>
-              <input class='file' type='file' />
-              <label>
-                <input type='checkbox' value='check1' />
-                Checkbox 1
-              </label>
-              <label>
-                <input checked='checked' type='checkbox' value='check2' />
-                Checkbox 2
-              </label>
-              <label>
-                <input disabled='disabled' type='checkbox' value='check3' />
-                Checkbox 3
-              </label>
-            </div>
-          </form>
-          <div class='controls'>
-            <a rel="Annuler" class="btn" href="#">Annuler</a>
-            <a rel="Enregistrer" class="btn" href="#">Enregistrer</a>
-          </div>
-		    </p>
-		  </div>
-		  <div id="tabs-2">
-		    <p></p>
-		  </div>
-		  <div id="tabs-3">
-		    <p><form action="/item" method="post">
-		    	Créer un item
-		    	Topics : <input name="topics" type="text" alt="lister les topics, séparés par des virgules (,)"/>
-		    	Value : <input name="value" type="text"/>
-		    	<input type="commit" value="Cr&eacute;er"/>
-		    </form></p>
-		  </div>
+<body>
+	<div style="width: 100%; height: 100%">
+		<div style="float:left;height:100%;width:15%;">
+			<h1 style="text-align: center; color: blue;">Magic MQ admin page</h1>
+			<div id="accordion">
+			</div>
+			<button style="bottom:0px;position: absolute" onclick="showAddInstance()">Add new instance...</button>
 		</div>
-    </div>
-    <div>
-    </div>
-  </body>
+		<div style="height:100%;float:right;width:85%">
+			<div style="height: 100%;width:100%" id="tabs">
+			<ul>
+				<li><a href="#tabs-1">Information</a></li>
+				<li><a href="#tabs-2">Topics</a></li>
+				<li><a href="#tabs-3">Topic</a></li>
+				<li><a href="#tabs-4">Post item</a></li>
+			</ul>
+			<div id="tabs-1">
+				<p>Configuration
+				<form>
+					<div class='select-radio'>
+						<label>Select Dropdown</label> <select>
+							<option value='option1'>Option 1</option>
+							<option value='option2'>Option 2</option>
+							<option value='option3'>Option 3</option>
+						</select> <label> <input name='rgroup' type='radio' value='radio1' />
+							Radio 1
+						</label> <label> <input checked='checked' name='rgroup'
+							type='radio' value='radio2' /> Radio 2
+						</label> <label> <input disabled='disabled' name='rgroup'
+							type='radio' value='radio3' /> Radio 3
+						</label>
+					</div>
+					<div class='file-checkbox'>
+						<label>File Upload</label> <input class='file' type='file' /> <label>
+							<input type='checkbox' value='check1' /> Checkbox 1
+						</label> <label> <input checked='checked' type='checkbox'
+							value='check2' /> Checkbox 2
+						</label> <label> <input disabled='disabled' type='checkbox'
+							value='check3' /> Checkbox 3
+						</label>
+					</div>
+				</form>
+				<div class='controls'>
+					<a rel="Annuler" class="btn" href="#">Annuler</a> <a
+						rel="Enregistrer" class="btn" href="#">Enregistrer</a>
+				</div>
+				</p>
+			</div>
+			<div id="tabs-2">
+				<p><h3>Topics list</h3>
+					<div id="topic-list"></div>
+				</p>
+			</div>
+			<div id="tabs-3">
+				<p>
+				<form action="/item" method="post">
+					Créer un item Topics : <input name="topics" type="text"
+						alt="lister les topics, séparés par des virgules (,)" /> Value :
+					<input name="value" type="text" /> <input type="commit"
+						value="Cr&eacute;er" />
+				</form>
+				</p>
+			</div>
+			<div id="tabs-4">
+				<p><h3>Create item</h3>
+				<form action="/item" method="post">
+					Topics : <input name="topics" type="text"
+						alt="lister les topics, séparés par des virgules (,)" /> Value :
+					<input name="value" type="text" /> <input type="commit"
+						value="Cr&eacute;er" />
+				</form>
+				</p>
+			</div>
+		</div>
+		</div>
+	</div>
+	<div id="dialog-form" title="Add instance" style="display:none">
+		<form>
+    		<fieldset>
+      			<label for="host">Host</label>
+      			<input type="text" name="host" id="addinstance-host" value="192.168.0.5" class="text ui-widget-content ui-corner-all">
+      			<label for="port">Port</label>
+      			<input type="text" name="port" id="addinstance-port" value="8082" class="text ui-widget-content ui-corner-all"/><br/>
+       			<!-- Allow form submission with keyboard without duplicating the dialog button -->
+      			<!--input type="submit" tabindex="-1" style="position:absolute; top:-1000px"-->
+    		</fieldset>
+  		</form>
+	</div>
+</body>
 </html>
