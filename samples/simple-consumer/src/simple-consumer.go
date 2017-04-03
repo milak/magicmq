@@ -11,6 +11,7 @@ import (
 // The flag package provides a server host name
 var hostFlag *string = flag.String("h", "", "The server host name")
 var portFlag *string = flag.String("p", "", "The server port")
+func post(url, 
 func requestDelete(url string){
 	request,_ := http.NewRequest(http.MethodDelete, url, http.NoBody)
 	resp, err := http.DefaultClient.Do(request)
@@ -25,17 +26,19 @@ func requestDelete(url string){
 	    fmt.Println("Fail :", resp.Status)
     }
 }
-func getObject(url string, object interface{}){
+func getObject(url string, object interface{}) bool {
+	//fmt.Println("Calling ",url)
 	resp, err := http.Get(url)
     if err != nil {
     	fmt.Println("Echec lors de l'appel au serveur")
-    	return
+    	return false
     }
     defer resp.Body.Close()
 	//body, err := ioutil.ReadAll(resp.Body)
 	//fmt.Println("response ", body)
 	decoder := json.NewDecoder(resp.Body)
 	decoder.Decode(&object)
+	return true
 }
 func main() {
 	flag.Parse() // Scan the arguments list 
@@ -52,12 +55,14 @@ func main() {
 	server := "http://"+*hostFlag+":"+*portFlag
 	fmt.Println("Starting simple-consumer...")
     information := new (struct {Version string})
-    getObject(server+"/info",&information)
+    if !getObject(server+"/info",&information) {
+    	return
+    }
 	fmt.Println("Connected to server version n°" + information.Version)
 	var command,arg1,arg2,arg3,arg4,arg5,arg6,arg7 string
 	var currentDirectory = "/"
 	for {
-		fmt.Print(currentDirectory+">")
+		fmt.Print(currentDirectory+"> ")
 		count,_ := fmt.Scanln(&command,&arg1,&arg2,&arg3,&arg4,&arg5,&arg6,&arg7)
 		command = strings.Trim(command,"\t ")
 		if len(command) == 0 {
@@ -84,6 +89,12 @@ func main() {
 					topic := topicList[i]
 					fmt.Println(topic.Type + "\t" + topic.Name)
 				}
+			} else if currentDirectory == "/instance" {
+				instanceList := make ([]struct {Host string; Port string; Connected bool},100)
+				getObject(server+"/instance",&instanceList)
+				for _,instance := range instanceList {
+					fmt.Println(instance.Host + ":" + instance.Port,instance.Connected)
+				}
 			} else {
 				fmt.Println("Not yet implemented")
 			}
@@ -96,7 +107,34 @@ func main() {
 			fmt.Println(" help : display help")
 			fmt.Println(" ls : list folders or items in the current position")
 			fmt.Println(" cd <position> : change current position")
+			fmt.Println(" mk <object> <options>...: create an object :")
+			fmt.Println(" 	item     : mk item -f <file> <topics>... [<parameters>...] | mk item -c <content> <topics> [<parameters>...]")
+			fmt.Println(" 	           <topics>     : <topicname>;<topicname>;...")
+			fmt.Println(" 	           <parameters> : <parameter>=<parameterValue>;")
+			fmt.Println(" 	topic    : mk topic <name> <type> <parameters>...")
+			fmt.Println(" 	instance : mk instance <host> <port>")
 			fmt.Println(" quit | exit | bye : exit")
+		} else if command == "mk" {
+			if arg1 == "item" {
+				if count < 4 {
+					fmt.Println("Not enough argument")
+				} else {
+					topics := arg4 
+					if arg2 == "-f" {
+						
+					} else if arg2 == "-c" {
+						
+					} else {
+						fmt.Println("Option not supported " + arg2)
+					}
+				}
+			} else if arg1 == "topic" {
+				
+			} else if arg1 == "instance" {
+				
+			} else {
+				fmt.Println("Can't create " + arg1)
+			}
 		} else if command == "cd" {
 			if count == 1 {
 				fmt.Println("missing argument")
@@ -146,7 +184,8 @@ func main() {
 				var topic = arg1
 				requestDelete(server+"/topic/"+topic)
 			} else if currentDirectory == "/instance" {
-				
+				var instance = arg1
+				requestDelete(server+"/instance/"+instance)
 			} else if currentDirectory == "/service" {
 				
 			} 
