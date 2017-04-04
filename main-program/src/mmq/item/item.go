@@ -9,6 +9,7 @@ type Item interface {
 	io.Reader
 	ID() string
 	Topics() []string
+	Reset()
 }
 type memoryItem struct {
 	id string
@@ -32,6 +33,9 @@ func (this *memoryItem) Read(dest []byte) (n int, err error) {
 		this.ptr = this.ptr + count
 		return count,nil
 	}
+}
+func (this *memoryItem) Reset() {
+	this.ptr = 0
 }
 func NewMemoryItem (aValue []byte, aTopics []string) Item{
 	return &memoryItem{id : uuid.New().String(), value : aValue, topics : aTopics, ptr : 0}
