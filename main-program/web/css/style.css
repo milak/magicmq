@@ -2,6 +2,18 @@
  */
 body {
 }
+.tabframe {
+	border : 1px black inset;
+	padding : 10px;
+}
+h3 {
+	text-align: center;
+	color: gray;
+	text-decoration: underline;
+}
+label {
+	font-weight: bold;
+}
 table {
 	border : 1px outset;
 	width : 80%;
@@ -9,6 +21,7 @@ table {
 table thead tr {
 	background-color: #007fff;
 	color: white;
+	text-align: center;
 }
 table tbody tr {
 	border: 1px;

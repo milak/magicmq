@@ -25,7 +25,7 @@
 				<li><a href="#tabs-4">Post item</a></li>
 			</ul>
 			<div id="tabs-1">
-				<p>Configuration
+				<div class="tabframe"><h3>Configuration</h3>
 				<form>
 					<div class='select-radio'>
 						<label>Select Dropdown</label> <select>
@@ -54,32 +54,52 @@
 					<a rel="Annuler" class="btn" href="#">Annuler</a> <a
 						rel="Enregistrer" class="btn" href="#">Enregistrer</a>
 				</div>
-				</p>
+				</div>
 			</div>
 			<div id="tabs-2">
-				<p><h3>Topics list</h3>
-					<div id="topic-list"></div>
-				</p>
+				<div class="tabframe"><h3>Topics list</h3>
+					<table>
+						<thead><tr><td>Name</td><td>Type</td></tr></thead>
+						<tbody id="topic-list"></tbody>
+					</table><br/>
+				</div>
 			</div>
 			<div id="tabs-3">
-				<p>
-				<form action="/item" method="post">
-					Créer un item Topics : <input name="topics" type="text"
-						alt="lister les topics, séparés par des virgules (,)" /> Value :
-					<input name="value" type="text" /> <input type="commit"
-						value="Cr&eacute;er" />
-				</form>
-				</p>
+				<div class="tabframe"><h3>Topic <span id="form-topic-title"></span></h3>
+					<label>Id</label> :					<input id="form-topic-item-id" type="text" readonly="true"/><br/>
+					<label>Param&egrave;tres</label> :<br/>
+					<table>
+						<thead><tr><td>Key</td><td>Value</td></tr></thead>
+						<tbody id="form-topic-item-parameters"></tbody>
+					</table><br/>
+					<label>Value</label> :<br/>
+					<textarea style="width:100%;" id="form-topic-item-value" readonly="true"></textarea><br/>
+					<hr/>
+					<button id="form-topic-button" value="Pop" onclick="popAnItem()" disabled="true">Pop item</button> <span id="form-topic-item-alert" style="color:red"></span>
+				</div>
 			</div>
 			<div id="tabs-4">
-				<p><h3>Create item</h3>
-				<form action="/item" method="post">
-					Topics : <input name="topics" type="text"
-						alt="lister les topics, séparés par des virgules (,)" /> Value :
-					<input name="value" type="text" /> <input type="commit"
-						value="Cr&eacute;er" />
+				<div class="tabframe"><h3>Create item</h3>
+				<form id="form-create-item" action="/item" method="POST" target="trash" onsubmit="itemCreated()">
+					<label>Value</label> :<br/> 
+					<textarea name="value" style="width: 100%"></textarea><br/>
+					<label>Topics</label> : <input name="topics" type="text" alt="lister les topics, séparés par des virgules (,)"><br/>
+					<table>
+						<thead><tr><td>Select</td><td>Name</td></tr></thead>
+						<tbody id="form-create-item-topic-list"></tbody>
+					</table>
+					<br/>
+					<label>Parameters</label> 	: <br/>
+					<table>
+						<thead>
+							<tr><td>Key</td><td>Value</td></tr>
+						</thead>
+						<tbody></tbody>
+					</table>
+					<hr/>
+					<button>Add parameter</button> <input id="form-create-item-submit" type="submit" value="Create" disabled="true"> <span id="form-create-item-alert" style="color:red"></span>
 				</form>
-				</p>
+				</div>
 			</div>
 		</div>
 		</div>
@@ -96,5 +116,6 @@
     		</fieldset>
   		</form>
 	</div>
+	<iframe style="display: none" name="trash"></iframe>
 </body>
 </html>

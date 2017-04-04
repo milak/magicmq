@@ -3,10 +3,14 @@ var Instance = function (aHost,aPort) {
     this.port = aPort;
     this.topics = new Array();
 }
-Instance.prototype.addTopic(aTopic){
+Instance.prototype.addTopic = function (aTopic){
 	this.topics.push(topic);
 }
+Instance.prototype.toString = function (){
+	return this.host+":"+this.port;
+}
 var currentInstance = null;
+var currentTopic = null;
 function toInstance(aName){
 	var index = aName.indexOf(":");
 	return {
@@ -62,27 +66,31 @@ var store = {
 		return result;
 	}
 };
-
-
-function addInstancePanel(data) {
-	$('#accordion').append(
-			'<h3>' + data.Name + '</h3><div><p>Version : ' + data.Version
-					+ '<button>Remove instance</button></p></div>').accordion(
-			"refresh");
+function addInstancePanel(instance,error) {
+	var html = '<div><p>';
+	if (error != null) {
+		html += 'Unable to connect ' + error + '<br/>';
+		//html += '<button onclick="loadInstance(\''+instance.toString()+'\',false)"></button><br/>';
+	} else {
+		html += 'Version : ' + instance.version + '<br/>';
+	}
+	html += '<button>Remove instance</button>';
+	$('#accordion').append('<h3>' + instance.toString() + '</h3>'+html+'</p></div>').accordion("refresh");
 }
-
 function loadInstance(instance, addToList) {
 	var url = "http://" + instance.host + ":" + instance.port + "/info";
 	$.ajax({
 		url : url,
 		success : function(data) {
-			addInstancePanel(data);
+			var instance = new Instance(data.Host, data.Port);
+			instance.version = data.Version;
+			addInstancePanel(instance,null);
 			if (addToList) {
-				store.addInstance(new Instance(data.Host, data.Port));
+				store.addInstance(instance);
 			}
 		},
 		error : function(jqXHR, textStatus, errorThrown) {
-			alert("Error " + textStatus + " " + errorThrown);
+			addInstancePanel(instance,"Unreachable " + errorThrown);
 		},
 		dataType : "json"
 	});
@@ -121,6 +129,96 @@ function showAddInstance() {
 	});
 	dialog.dialog("open");
 }
+function loadTopic(aTopicName){
+	$("#form-topic-button").prop('disabled', true);
+	currentTopic = null;
+	$.ajax({
+		url : "http://" + currentInstance.host+":"+currentInstance.port + "/topic/"+aTopicName,
+		success : function(data) {
+			currentTopic = data.Name;
+			$("#tabs").tabs("option","active",2);
+			$("#form-topic-title").html(data.Name);
+			$("#form-topic-button").prop('disabled', false);
+		},
+		error : function(jqXHR, textStatus, errorThrown) {
+			alert("Error " + textStatus + " " + errorThrown);
+		},
+		dataType : "jsonp"
+	})
+}
+function loadInformation(instance) {
+	$("#form-topic-title").html("");
+	$("#form-topic-button").prop('disabled', true);
+	$("#form-create-item-submit").prop('disabled', true);
+	currentInstance = instance;
+	$.ajax({
+		url : "http://" + instance.host+":"+instance.port + "/topic",
+		success : function(data) {
+			var topic_list = "";
+			var formCreateItemTopicList = "";
+			for (var t = 0 ; t < data.length; t++){
+				var topic = data[t];
+				if (topic.Type == "SIMPLE") {
+					formCreateItemTopicList += "<tr><td><input type='checkbox' value='"+topic.Name+"' /></td><td>"+topic.Name+"</td></tr>";
+				}
+				topic_list+= "<tr>";
+				topic_list += "<td><a href='#' onclick='loadTopic(\""+topic.Name+"\")'>"+topic.Name+"</a></td>";
+				topic_list += "<td>"+topic.Type+"</td>";
+				topic_list+= "</tr>";
+			}
+			$("#topic-list").html(topic_list);
+			$("#form-create-item-topic-list").html(formCreateItemTopicList);
+			$("#form-create-item").prop('action', "http://"+instance.host+":"+instance.port+"/item");
+			$("#form-create-item-submit").prop('disabled', false);
+		},
+		error : function(jqXHR, textStatus, errorThrown) {
+			alert("Error while loading information for " + instance.toString() + " : " + textStatus + " " + errorThrown);
+		},
+		dataType : "jsonp"
+	})
+}
+function itemCreated(){
+	$('#form-create-item-submit').prop('disabled',true);
+	$('#form-create-item-alert').html("Created");
+	setTimeout(function (){
+		$('#form-create-item-alert').html("");
+		$('#form-create-item-submit').prop('disabled',false);
+	},1200);
+}
+function clearItem(){
+	$("#form-topic-item-id").val("");
+	var html = "<table><thead><tr><td>Key</td><td>Value</td></tr></thead><tbody></tbody></table>";
+	$("#form-topic-item-parameters").html("");
+	$("#form-topic-item-value").val("");
+	$("#form-topic-item-alert").html("");
+}
+function popAnItem(){
+	clearItem();
+	var url = "http://" + currentInstance.host + ":" + currentInstance.port + "/topic/" + currentTopic + "/pop";
+	$.ajax({
+		url : url,
+		success : function(data, textStatus, jqXHR) {
+			var ContentLength = jqXHR.getResponseHeader("Content-Length");
+			var parameters = jqXHR.getResponseHeader("Parameters");
+			parameters = JSON.parse(parameters);
+			$("#form-topic-item-id").val(jqXHR.getResponseHeader("Id"));
+			var html = "";
+			for (var p = 0; p < parameters.length; p++){
+				var parameter = parameters[p];
+				html += "<tr><td>"+parameter.key+"</td><td>"+parameter.value+"</td></tr>";
+			}
+			$("#form-topic-item-parameters").html(html);
+			$("#form-topic-item-value").val(data);
+		},
+		error : function(jqXHR, textStatus, errorThrown) {
+			$("#form-topic-item-alert").html(errorThrown);
+			setTimeout(function() {
+				$("#form-topic-item-alert").html("");
+			}, 1200);
+		},
+		dataType : "text"
+	});
+}
 $(function() {
 	$("#accordion").accordion({
 		activate : function(event, ui) {
@@ -134,40 +232,16 @@ $(function() {
 		$.ajax({
 			url : "/info",
 			success : function(data) {
-				addInstancePanel(data);
-				var instance = new Instance(data.Host,data.Port);
+				var instance = new Instance(data.Host, data.Port);
+				instance.version = data.Version;
+				addInstancePanel(instance,null);
 				store.addInstance(instance);
 				loadInformation(instance);
 			},
 			error : function(jqXHR, textStatus, errorThrown) {
-				alert("Error " + textStatus + " " + errorThrown);
+				addInstancePanel(instance,"Unreachable " + errorThrown);
 			},
 			dataType : "jsonp"
 		});
 	}
 });
-function loadInformation(instance) {
-	currentInstance = instance;
-	$.ajax({
-		url : "http://" + instance.host+":"+instance.port + "/topic",
-		success : function(data) {
-			var topic_list = "<table>";
-			topic_list += "<thead><tr><th>Name</th><th>Type</th></tr></thead><tbody>";
-			for (var t = 0 ; t < data.length; t++){
-				topic_list+= "<tr>";
-				topic_list += "<td>"+data[t].Name+"</td>";
-				topic_list += "<td>"+data[t].Type+"</td>";
-				topic_list+= "</tr>";
-			}
-			topic_list+= "</tbody></table>";
-			$("#topic-list").html(topic_list);
-		},
-		error : function(jqXHR, textStatus, errorThrown) {
-			alert("Error " + textStatus + " " + errorThrown);
-		},
-		dataType : "jsonp"
-	})
-}
-function result(data) {
-	alert("received " + data)
-}
