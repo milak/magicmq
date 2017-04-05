@@ -36,7 +36,7 @@ func main() {
     }
     context := *env.NewContext()
     context.Configuration 	= conf.InitConfiguration(*configurationFileName)
-    context.Store 			= item.NewStore()
+    context.Store 			= item.NewStore(context.Configuration)
     httpService := service.NewHttpService(&context)
     httpService.Start()
     syncService := service.NewSyncService(&context)

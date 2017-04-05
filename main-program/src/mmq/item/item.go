@@ -7,18 +7,27 @@ import (
 )
 type Item interface {
 	io.Reader
-	ID() string
-	Topics() []string
+	ID() 			string
+	Topics() 		[]string
 	Reset()
+	Properties() 	[]Property
+}
+type Property struct {
+	Name string
+	Value string
 }
 type memoryItem struct {
-	id string
-	topics []string
-	value []byte
-	ptr int
+	id 			string
+	topics		[]string
+	value 		[]byte
+	ptr 		int
+	properties 	[]Property
 }
 func (this *memoryItem) ID() string {
 	return this.id
+}
+func (this *memoryItem) Properties() []Property {
+	return this.properties
 }
 func (this *memoryItem) Topics() []string {
 	return this.topics

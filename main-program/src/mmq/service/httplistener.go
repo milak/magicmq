@@ -70,8 +70,13 @@ func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request) 
 			topics = append(topics, topicsList)
 			value := req.Form["value"][0]
 			item := item.NewMemoryItem([]byte(value), topics)
-			this.context.Store.Push(item)
-			w.WriteHeader(http.StatusCreated)
+			err := this.context.Store.Push(item)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(err.Error()))
+			} else {
+				w.WriteHeader(http.StatusCreated)
+			}
 		}
 	} else {
 		this.methodNotSupported(w, req.Method)
@@ -83,18 +88,21 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 	topicName = topicName[len("/topic/"):]
 	if req.Method == http.MethodGet {
 		if strings.HasSuffix(topicName, "/pop") {
-			topicName = topicName[0:len(topicName)-len("/pop")]
-			item := this.context.Store.Pop(topicName)
-			if item == nil {
+			topicName = topicName[0 : len(topicName)-len("/pop")]
+			item,err := this.context.Store.Pop(topicName)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(err.Error()))
+			} else if item == nil {
 				this.notFound(w)
 			} else {
 				/**w.WriteHeader(http.StatusOK)
 				encoder := json.NewEncoder(w)
 				encoder.Encode(item)*/
-				buffer := make ([]byte,1000)
+				buffer := make([]byte, 1000)
 				w.Header().Add("id", item.ID())
-				w.Header().Add("parameters", "[{\"key\" : \"date\", \"value\" : \"12/12/17\"},{\"key\" : \"color\", \"value\" : \"red\"}]")
-				count,err := item.Read(buffer)
+				w.Header().Add("properties", "[{\"key\" : \"date\", \"value\" : \"12/12/17\"},{\"key\" : \"color\", \"value\" : \"red\"}]")
+				count, err := item.Read(buffer)
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
 				} else {
@@ -102,27 +110,21 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 				}
 			}
 		} else {
-			req.ParseForm()
-			callback := req.Form["callback"]
-			if callback != nil {
-				w.Write([]byte(callback[0] + "("))
-			}
-			found := false
-			for i := range this.context.Configuration.Topics {
-				topic := this.context.Configuration.Topics[i]
-				if topic.Name == topicName {
-					w.WriteHeader(http.StatusOK)
-					encoder := json.NewEncoder(w)
-					encoder.Encode(topic)
-					found = true
-					break
-				}
-			}
-			if !found {
+			topic := this.context.Configuration.GetTopic(topicName)
+			if topic == nil {
 				this.notFound(w)
-			}
-			if callback != nil {
-				w.Write([]byte(")"))
+			} else {
+				req.ParseForm()
+				w.WriteHeader(http.StatusOK)
+				callback := req.Form["callback"]
+				if callback != nil {
+					w.Write([]byte(callback[0] + "("))
+				}
+				encoder := json.NewEncoder(w)
+				encoder.Encode(topic)
+				if callback != nil {
+					w.Write([]byte(")"))
+				}
 			}
 		}
 	} else if req.Method == http.MethodDelete {

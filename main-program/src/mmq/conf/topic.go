@@ -3,15 +3,16 @@ package conf
 import (
 	"time"
 )
-const SIMPLE = "SIMPLE"
+const SIMPLE 	= "SIMPLE"
 const VIRTUAL = "VIRTUAL"
 
 /**
  * Stratégies de répartition des topics pour les topics virtuels
  */
-const ROUND_ROBIN 	= "ROUND ROBIN"
-const ORDERED 		= "ORDERED"
-const STRATEGY 		= "strategy"
+const PARAMETER_STRATEGY 	= "Strategy"
+const ROUND_ROBIN 			= "ROUND ROBIN"
+const ORDERED 				= "ORDERED"
+
 const PARAMETER_DISTRIBUTED = "Distributed"
 const DISTRIBUTED_NO 		= "NO"
 const DISTRIBUTED_ALL 		= "ALL"
@@ -31,7 +32,7 @@ func NewTopic(aName string) *Topic {
 func NewVirtualTopic(aName string, aStrategy string, aTopicList []string) *Topic {
 	result := Topic{Name : aName, Type : VIRTUAL, TopicList : aTopicList}
 	result.Parameters = make([]Parameter,1)
-	result.Parameters[0].Name = STRATEGY
+	result.Parameters[0].Name = PARAMETER_STRATEGY
 	result.Parameters[0].Value = ORDERED
 	return &result
 }
@@ -42,4 +43,12 @@ func (this *Topic) IsDistributed() bool {
 		}
 	}
 	return false
+}
+func (this *Topic) GetParameterByName(aParameterName string) *string {
+	for _,p := range this.Parameters {
+		if p.Name == aParameterName {
+			return &p.Value
+		}
+	}
+	return nil
 }
