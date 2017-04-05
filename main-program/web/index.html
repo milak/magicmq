@@ -5,6 +5,7 @@
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"/>
 	<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
 	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+	<script src="http://malsup.github.com/jquery.form.js"></script>
 	<script type="text/javascript" src="script/util.js"></script>
 	<script type="text/javascript" src="script/mmq.js"></script>
 </head>
@@ -67,20 +68,20 @@
 			<div id="tabs-3">
 				<div class="tabframe"><h3>Topic <span id="form-topic-title"></span></h3>
 					<label>Id</label> :					<input id="form-topic-item-id" type="text" readonly="true"/><br/>
-					<label>Param&egrave;tres</label> :<br/>
+					<label>Properties</label> :<br/>
 					<table>
 						<thead><tr><td>Key</td><td>Value</td></tr></thead>
-						<tbody id="form-topic-item-parameters"></tbody>
+						<tbody id="form-topic-item-properties"></tbody>
 					</table><br/>
 					<label>Value</label> :<br/>
 					<textarea style="width:100%;" id="form-topic-item-value" readonly="true"></textarea><br/>
 					<hr/>
-					<button id="form-topic-button" value="Pop" onclick="popAnItem()" disabled="true">Pop item</button> <span id="form-topic-item-alert" style="color:red"></span>
+					<a href="#" class="button" id="form-topic-button" value="Pop" onclick="popAnItem()" disabled="true">Pop item</a> <span id="form-topic-item-alert" style="color:red"></span>
 				</div>
 			</div>
 			<div id="tabs-4">
 				<div class="tabframe"><h3>Create item</h3>
-				<form id="form-create-item" action="/item" method="POST" target="trash" onsubmit="itemCreated()">
+				<form id="form-create-item" method="POST">
 					<label>Value</label> :<br/> 
 					<textarea name="value" style="width: 100%"></textarea><br/>
 					<label>Topics</label> : <input name="topics" type="text" alt="lister les topics, séparés par des virgules (,)"><br/>
@@ -89,16 +90,18 @@
 						<tbody id="form-create-item-topic-list"></tbody>
 					</table>
 					<br/>
-					<label>Parameters</label> 	: <br/>
+					<label>Properties</label> 	: <br/>
 					<table>
 						<thead>
-							<tr><td>Key</td><td>Value</td></tr>
+							<tr><td>Key</td><td>Value</td><td>Remove</td></tr>
 						</thead>
-						<tbody></tbody>
+						<tbody id="form-create-item-property-list"></tbody>
 					</table>
 					<hr/>
-					<button>Add parameter</button> <input id="form-create-item-submit" type="submit" value="Create" disabled="true"> <span id="form-create-item-alert" style="color:red"></span>
+					<input type="submit" style="display:none"/>
 				</form>
+				<a href="#" class="button" onclick="addPropertyToNewItem()">Add property</a> 
+				<a href="#" class="button" id="form-create-item-submit" disabled="true" onclick="createItem()">Create</a> <span id="form-create-item-alert" style="color:red"></span>
 				</div>
 			</div>
 		</div>
@@ -116,6 +119,5 @@
     		</fieldset>
   		</form>
 	</div>
-	<iframe style="display: none" name="trash"></iframe>
 </body>
 </html>

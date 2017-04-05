@@ -1,17 +1,17 @@
-var Instance = function (aHost,aPort) {
-    this.host = aHost; 
-    this.port = aPort;
-    this.topics = new Array();
+var Instance = function(aHost, aPort) {
+	this.host = aHost;
+	this.port = aPort;
+	this.topics = new Array();
 }
-Instance.prototype.addTopic = function (aTopic){
+Instance.prototype.addTopic = function(aTopic) {
 	this.topics.push(topic);
 }
-Instance.prototype.toString = function (){
-	return this.host+":"+this.port;
+Instance.prototype.toString = function() {
+	return this.host + ":" + this.port;
 }
 var currentInstance = null;
 var currentTopic = null;
-function toInstance(aName){
+function toInstance(aName) {
 	var index = aName.indexOf(":");
 	return {
 		host : aName.substring(0, index),
@@ -20,21 +20,22 @@ function toInstance(aName){
 }
 var instances = new Array();
 var store = {
-	isEmpty : function () {
+	isEmpty : function() {
 		var instance_list = getCookie("instance_list")
 		return instance_list == "";
 	},
-	containsInstance : function (aInstance){
-			var instance_list = this.getInstances();
-			for (var i = 0; i < instance_list.length; i++) {
-				var instance = instance_list[i];
-				if ((instance.host == aInstance.host) && (instance.port == aInstance.port)) {
-					return true;
-				}
+	containsInstance : function(aInstance) {
+		var instance_list = this.getInstances();
+		for (var i = 0; i < instance_list.length; i++) {
+			var instance = instance_list[i];
+			if ((instance.host == aInstance.host)
+					&& (instance.port == aInstance.port)) {
+				return true;
 			}
-			return false;
+		}
+		return false;
 	},
-	addInstance : function (aInstance) {
+	addInstance : function(aInstance) {
 		if (this.containsInstance(aInstance)) {
 			return;
 		}
@@ -48,7 +49,7 @@ var store = {
 	getInstances : function() {
 		var result = new Array();
 		var instance_list = getCookie("instance_list");
-		if (instance_list.length == 0){
+		if (instance_list.length == 0) {
 			return result;
 		}
 		var pos = instance_list.indexOf(",");
@@ -66,16 +67,19 @@ var store = {
 		return result;
 	}
 };
-function addInstancePanel(instance,error) {
+function addInstancePanel(instance, error) {
 	var html = '<div><p>';
 	if (error != null) {
 		html += 'Unable to connect ' + error + '<br/>';
-		//html += '<button onclick="loadInstance(\''+instance.toString()+'\',false)"></button><br/>';
+		// html += '<button
+		// onclick="loadInstance(\''+instance.toString()+'\',false)"></button><br/>';
 	} else {
 		html += 'Version : ' + instance.version + '<br/>';
 	}
 	html += '<button>Remove instance</button>';
-	$('#accordion').append('<h3>' + instance.toString() + '</h3>'+html+'</p></div>').accordion("refresh");
+	$('#accordion').append(
+			'<h3>' + instance.toString() + '</h3>' + html + '</p></div>')
+			.accordion("refresh");
 }
 function loadInstance(instance, addToList) {
 	var url = "http://" + instance.host + ":" + instance.port + "/info";
@@ -84,13 +88,13 @@ function loadInstance(instance, addToList) {
 		success : function(data) {
 			var instance = new Instance(data.Host, data.Port);
 			instance.version = data.Version;
-			addInstancePanel(instance,null);
+			addInstancePanel(instance, null);
 			if (addToList) {
 				store.addInstance(instance);
 			}
 		},
 		error : function(jqXHR, textStatus, errorThrown) {
-			addInstancePanel(instance,"Unreachable " + errorThrown);
+			addInstancePanel(instance, "Unreachable " + errorThrown);
 		},
 		dataType : "json"
 	});
@@ -100,7 +104,7 @@ function reloadInstancesInStore() {
 	for (var i = 0; i < instance_list.length; i++) {
 		var instance = instance_list[i];
 		loadInstance(instance, false);
-		if (i == 0){
+		if (i == 0) {
 			loadInformation(instance);
 		}
 	}
@@ -129,14 +133,15 @@ function showAddInstance() {
 	});
 	dialog.dialog("open");
 }
-function loadTopic(aTopicName){
+function loadTopic(aTopicName) {
 	$("#form-topic-button").prop('disabled', true);
 	currentTopic = null;
 	$.ajax({
-		url : "http://" + currentInstance.host+":"+currentInstance.port + "/topic/"+aTopicName,
+		url : "http://" + currentInstance.host + ":" + currentInstance.port
+				+ "/topic/" + aTopicName,
 		success : function(data) {
 			currentTopic = data.Name;
-			$("#tabs").tabs("option","active",2);
+			$("#tabs").tabs("option", "active", 2);
 			$("#form-topic-title").html(data.Name);
 			$("#form-topic-button").prop('disabled', false);
 		},
@@ -151,63 +156,101 @@ function loadInformation(instance) {
 	$("#form-topic-button").prop('disabled', true);
 	$("#form-create-item-submit").prop('disabled', true);
 	currentInstance = instance;
-	$.ajax({
-		url : "http://" + instance.host+":"+instance.port + "/topic",
-		success : function(data) {
-			var topic_list = "";
-			var formCreateItemTopicList = "";
-			for (var t = 0 ; t < data.length; t++){
-				var topic = data[t];
-				if (topic.Type == "SIMPLE") {
-					formCreateItemTopicList += "<tr><td><input type='checkbox' value='"+topic.Name+"' /></td><td>"+topic.Name+"</td></tr>";
-				}
-				topic_list+= "<tr>";
-				topic_list += "<td><a href='#' onclick='loadTopic(\""+topic.Name+"\")'>"+topic.Name+"</a></td>";
-				topic_list += "<td>"+topic.Type+"</td>";
-				topic_list+= "</tr>";
-			}
-			$("#topic-list").html(topic_list);
-			$("#form-create-item-topic-list").html(formCreateItemTopicList);
-			$("#form-create-item").prop('action', "http://"+instance.host+":"+instance.port+"/item");
-			$("#form-create-item-submit").prop('disabled', false);
-		},
-		error : function(jqXHR, textStatus, errorThrown) {
-			alert("Error while loading information for " + instance.toString() + " : " + textStatus + " " + errorThrown);
-		},
-		dataType : "jsonp"
-	})
+	$
+			.ajax({
+				url : "http://" + instance.host + ":" + instance.port
+						+ "/topic",
+				success : function(data) {
+					var topic_list = "";
+					var formCreateItemTopicList = "";
+					for (var t = 0; t < data.length; t++) {
+						var topic = data[t];
+						if (topic.Type == "SIMPLE") {
+							formCreateItemTopicList += "<tr><td><input type='checkbox' value='"
+									+ topic.Name
+									+ "' /></td><td>"
+									+ topic.Name
+									+ "</td></tr>";
+						}
+						topic_list += "<tr>";
+						topic_list += "<td><a href='#' onclick='loadTopic(\""
+								+ topic.Name + "\")'>" + topic.Name
+								+ "</a></td>";
+						topic_list += "<td>" + topic.Type + "</td>";
+						topic_list += "</tr>";
+					}
+					$("#topic-list").html(topic_list);
+					$("#form-create-item-topic-list").html(
+							formCreateItemTopicList);
+					$("#form-create-item").prop(
+							'action',
+							"http://" + instance.host + ":" + instance.port
+									+ "/item");
+					$("#form-create-item-submit").prop('disabled', false);
+				},
+				error : function(jqXHR, textStatus, errorThrown) {
+					alert("Error while loading information for "
+							+ instance.toString() + " : " + textStatus + " "
+							+ errorThrown);
+				},
+				dataType : "jsonp"
+			})
 }
-function itemCreated(){
-	$('#form-create-item-submit').prop('disabled',true);
-	$('#form-create-item-alert').html("Created");
-	setTimeout(function (){
-		$('#form-create-item-alert').html("");
-		$('#form-create-item-submit').prop('disabled',false);
-	},1200);
+function createItem() {
+	var url = "http://"+currentInstance.host+":"+currentInstance.port+"/item";
+	//$('#form-create-item').prop("action",url);
+	$('#form-create-item').ajaxForm({
+		url 		: url,
+		method 		: "POST",
+		//dataType 	: 'json',
+		success 	: function(response) {
+			$('#form-create-item-submit').prop('disabled', true);
+			$('#form-create-item-alert').prop('color', "green");
+			$('#form-create-item-alert').html("Created");
+			setTimeout(function() {
+				$('#form-create-item-alert').html("");
+				$('#form-create-item-submit').prop('disabled', false);
+			}, 1200);
+		},
+		error 		: function(jqXHR, textStatus, errorThrown) {
+			$('#form-create-item-submit').prop('disabled', true);
+			$('#form-create-item-alert').prop('color', "red");
+			$('#form-create-item-alert').html("Erreur : " + errorThrown + " " + jqXHR.responseText);
+			setTimeout(function() {
+				$('#form-create-item-alert').html("");
+				$('#form-create-item-submit').prop('disabled', false);
+			}, 4000);
+		}
+	}).submit();
 }
-function clearItem(){
+function addPropertyToNewItem() {
+	$("#form-create-item-property-list").append("<tr><td><input name='property-key' style='width:100%' type='text'/></td><td><input name='property-value' style='width:100%' type='text'/></td><td style='text-align:center'><a href='#' class='button' onclick=\"$('#form-create-item-property-list').html('')\">X</a></td></tr>");
+}
+function clearItem() {
 	$("#form-topic-item-id").val("");
 	var html = "<table><thead><tr><td>Key</td><td>Value</td></tr></thead><tbody></tbody></table>";
-	$("#form-topic-item-parameters").html("");
+	$("#form-topic-item-properties").html("");
 	$("#form-topic-item-value").val("");
 	$("#form-topic-item-alert").html("");
 }
-function popAnItem(){
+function popAnItem() {
 	clearItem();
-	var url = "http://" + currentInstance.host + ":" + currentInstance.port + "/topic/" + currentTopic + "/pop";
+	var url = "http://" + currentInstance.host + ":" + currentInstance.port
+			+ "/topic/" + currentTopic + "/pop";
 	$.ajax({
 		url : url,
 		success : function(data, textStatus, jqXHR) {
 			var ContentLength = jqXHR.getResponseHeader("Content-Length");
-			var parameters = jqXHR.getResponseHeader("Parameters");
-			parameters = JSON.parse(parameters);
+			var properties = jqXHR.getResponseHeader("Properties");
+			properties = JSON.parse(properties);
 			$("#form-topic-item-id").val(jqXHR.getResponseHeader("Id"));
 			var html = "";
-			for (var p = 0; p < parameters.length; p++){
-				var parameter = parameters[p];
-				html += "<tr><td>"+parameter.key+"</td><td>"+parameter.value+"</td></tr>";
+			for (var p = 0; p < properties.length; p++) {
+				var property = properties[p];
+				html += "<tr><td>" + property.key + "</td><td>"
+						+ property.value + "</td></tr>";
 			}
-			$("#form-topic-item-parameters").html(html);
+			$("#form-topic-item-properties").html(html);
 			$("#form-topic-item-value").val(data);
 		},
 		error : function(jqXHR, textStatus, errorThrown) {
@@ -226,7 +269,7 @@ $(function() {
 		}
 	});
 	$("#tabs").tabs();
-	if (!store.isEmpty()){
+	if (!store.isEmpty()) {
 		reloadInstancesInStore();
 	} else {
 		$.ajax({
@@ -234,12 +277,12 @@ $(function() {
 			success : function(data) {
 				var instance = new Instance(data.Host, data.Port);
 				instance.version = data.Version;
-				addInstancePanel(instance,null);
+				addInstancePanel(instance, null);
 				store.addInstance(instance);
 				loadInformation(instance);
 			},
 			error : function(jqXHR, textStatus, errorThrown) {
-				addInstancePanel(instance,"Unreachable " + errorThrown);
+				addInstancePanel(instance, "Unreachable " + errorThrown);
 			},
 			dataType : "jsonp"
 		});

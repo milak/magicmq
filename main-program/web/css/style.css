@@ -2,6 +2,34 @@
  */
 body {
 }
+.button {
+	color:#fff!important;
+	opacity:0.9;
+	background-color:#2196F3!important;
+	border:none;
+	display:inline-block;
+	outline:0;
+	padding:6px 16px;
+	vertical-align:middle;
+	overflow:hidden;
+	text-decoration:none!important;
+	text-align:center;
+	cursor:pointer;
+	white-space:nowrap;
+	border-radius:8px!important;
+	transition-duration: 0.4s;
+}
+.button:active{
+	border:1px gray inset;
+}
+.button:hover{
+	opacity:0.9;
+}
+.button:disabled{
+	cursor:not-allowed;
+	opacity:0.3;
+	pointer-events:none;
+}
 .tabframe {
 	border : 1px black inset;
 	padding : 10px;
