@@ -7,40 +7,34 @@ import (
     "mmq/conf"
     "mmq/service"
     "mmq/item"
+    "mmq/dist"
     "time"
 )
 
 // The flag package provides a default help printer via -h switch
 var versionFlag *bool = flag.Bool("v", false, "Print the version number.")
 var configurationFileName *string = flag.String("f", "configuration.json", "The configuration file name")
-/**func pop(topic string){
-	fmt.Println("Topic : "+topic+" ( nb total = ",store.Count(topic),")")
-    item := store.Pop(topic)
-    if item == nil {
-    	//fmt.Println("plus d'items à lire")
-    } else {
-	    buffer := make([]byte,1000)
-	    count,err := item.Read(buffer)
-	    for err == nil {
-		    fmt.Println("Item trouvé : ID =",item.ID(),"taille =",count,"value =",string(buffer[0:count]))
-		    count,err = item.Read(buffer)
-	    }
-	    
-    }
-}*/
 func main() {
+	context := *env.NewContext()
+	
     flag.Parse() // Scan the arguments list 
-	fmt.Println("Starting MagicMQ...")
+	fmt.Println("Starting MagicMQ on "+context.Host+"...")
     if *versionFlag {
         fmt.Println("Version:"/**, configuration.Version*/)
     }
-    context := *env.NewContext()
+    
+    
     context.Configuration 	= conf.InitConfiguration(*configurationFileName)
-    context.Store 			= item.NewStore(context.Configuration)
-    httpService := service.NewHttpService(&context)
+	pool 	:= dist.NewInstancePool(&context)  
+    store 	:= item.NewStore(&context)
+    itemProcessorService := service.NewItemProcessorService(&context)
+    itemProcessorService.Start()
+    httpService := service.NewHttpService(&context,store)
     httpService.Start()
-    syncService := service.NewSyncService(&context)
+    syncService := service.NewSyncService(&context,pool)
     syncService.Start()
+    listener := dist.NewListener(&context,pool)
+    listener.Start()
     fmt.Println("MagicMQ started")
     for context.Running {
     	time.Sleep(100 * time.Millisecond)

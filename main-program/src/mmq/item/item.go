@@ -4,13 +4,21 @@ import (
 	"io"
 	"math"
 	"github.com/google/uuid"
+	"mmq/conf"
 )
+// Event
+type ItemAdded struct {
+	Item 	Item
+	Topic	*conf.Topic
+}
+
 type Item interface {
 	io.Reader
 	ID() 			string
 	Topics() 		[]string
 	Reset()
 	Properties() 	[]Property
+	AddProperty(aName,aValue string) *Property
 }
 type Property struct {
 	Name string
@@ -25,6 +33,11 @@ type memoryItem struct {
 }
 func (this *memoryItem) ID() string {
 	return this.id
+}
+func (this *memoryItem) AddProperty(aName,aValue string) *Property {
+	result := Property{Name : aName, Value : aValue}
+	this.properties = append(this.properties,result)
+	return &result
 }
 func (this *memoryItem) Properties() []Property {
 	return this.properties

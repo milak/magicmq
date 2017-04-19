@@ -76,7 +76,7 @@
 					<label>Value</label> :<br/>
 					<textarea style="width:100%;" id="form-topic-item-value" readonly="true"></textarea><br/>
 					<hr/>
-					<a href="#" class="button" id="form-topic-button" value="Pop" onclick="popAnItem()" disabled="true">Pop item</a> <span id="form-topic-item-alert" style="color:red"></span>
+					<a href="#" class="button" id="form-topic-button" onclick="popAnItem()">Pop item</a> <span id="form-topic-item-alert" style="color:red"></span>
 				</div>
 			</div>
 			<div id="tabs-4">
@@ -84,9 +84,9 @@
 				<form id="form-create-item" method="POST">
 					<label>Value</label> :<br/> 
 					<textarea name="value" style="width: 100%"></textarea><br/>
-					<label>Topics</label> : <input name="topics" type="text" alt="lister les topics, séparés par des virgules (,)"><br/>
+					<label>Topics</label> :
 					<table>
-						<thead><tr><td>Select</td><td>Name</td></tr></thead>
+						<thead><tr><td style="width:10%">Select</td><td>Name</td></tr></thead>
 						<tbody id="form-create-item-topic-list"></tbody>
 					</table>
 					<br/>

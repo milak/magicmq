@@ -1,10 +1,11 @@
 package service
 
 import (
-	//"log"
 	"encoding/json"
 	"mmq/env"
+	"mmq/conf"
 	"mmq/item"
+	"github.com/milak/event"
 	"net/http"
 	"strings"
 )
@@ -12,10 +13,11 @@ import (
 type HttpService struct {
 	context *env.Context
 	port    string
+	store   *item.ItemStore
 }
 
-func NewHttpService(aContext *env.Context) *HttpService {
-	return &HttpService{context: aContext}
+func NewHttpService(aContext *env.Context, aStore *item.ItemStore) *HttpService {
+	return &HttpService{context: aContext, store : aStore}
 }
 func (this *HttpService) notFound(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNotFound)
@@ -61,16 +63,20 @@ func (this *HttpService) topicListListener(w http.ResponseWriter, req *http.Requ
 func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodPut || req.Method == http.MethodPost {
 		req.ParseForm()
-		if len(req.Form["topics"]) == 0 || len(req.Form["value"]) == 0 {
+		if len(req.Form["topic"]) == 0 || len(req.Form["value"]) == 0 {
 			w.WriteHeader(http.StatusNotAcceptable)
 		} else {
-			topicsList := req.Form["topics"][0]
 			topics := []string{}
-			// TODO split topicsList with ',' separator or use multiple value
-			topics = append(topics, topicsList)
+			for _,topicName := range req.Form["topic"] { 
+				topics = append(topics, topicName)
+			}
 			value := req.Form["value"][0]
 			item := item.NewMemoryItem([]byte(value), topics)
-			err := this.context.Store.Push(item)
+			for i,key := range req.Form["property-name"] {
+				value := req.Form["property-value"][i]
+				item.AddProperty(key,value)
+			}
+			err := this.store.Push(item)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(err.Error()))
@@ -89,19 +95,24 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 	if req.Method == http.MethodGet {
 		if strings.HasSuffix(topicName, "/pop") {
 			topicName = topicName[0 : len(topicName)-len("/pop")]
-			item,err := this.context.Store.Pop(topicName)
+			item,err := this.store.Pop(topicName)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(err.Error()))
 			} else if item == nil {
 				this.notFound(w)
 			} else {
-				/**w.WriteHeader(http.StatusOK)
-				encoder := json.NewEncoder(w)
-				encoder.Encode(item)*/
 				buffer := make([]byte, 1000)
 				w.Header().Add("id", item.ID())
-				w.Header().Add("properties", "[{\"key\" : \"date\", \"value\" : \"12/12/17\"},{\"key\" : \"color\", \"value\" : \"red\"}]")
+				properties := "["
+				for i,p := range item.Properties() {
+					if i != 0 {
+						properties += ","
+					}
+					properties += "{\"name\" : \""+p.Name+"\", \"value\" : \""+p.Value+"\"}"
+				}
+				properties += "]"
+				w.Header().Add("properties",properties)
 				count, err := item.Read(buffer)
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
@@ -150,7 +161,7 @@ func (this *HttpService) instanceListener(w http.ResponseWriter, req *http.Reque
 		if removedInstance == nil {
 			this.notFound(w)
 		} else {
-			this.context.FireInstanceRemoved(removedInstance)
+			event.EventBus.FireEvent(&conf.InstanceRemoved{removedInstance})
 			w.WriteHeader(http.StatusOK)
 		}
 	}

@@ -16,6 +16,9 @@ const ORDERED 				= "ORDERED"
 const PARAMETER_DISTRIBUTED = "Distributed"
 const DISTRIBUTED_NO 		= "NO"
 const DISTRIBUTED_ALL 		= "ALL"
+
+const PARAMETER_DISTRIBUTED_GROUPS = "DistributedGroups"
+
 func makeTimestamp() int64 {
     return time.Now().UnixNano() / int64(time.Millisecond)
 }

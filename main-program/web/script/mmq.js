@@ -76,7 +76,7 @@ function addInstancePanel(instance, error) {
 	} else {
 		html += 'Version : ' + instance.version + '<br/>';
 	}
-	html += '<button>Remove instance</button>';
+	html += '<a href="#" class="button">Remove instance</a>';
 	$('#accordion').append(
 			'<h3>' + instance.toString() + '</h3>' + html + '</p></div>')
 			.accordion("refresh");
@@ -156,53 +156,37 @@ function loadInformation(instance) {
 	$("#form-topic-button").prop('disabled', true);
 	$("#form-create-item-submit").prop('disabled', true);
 	currentInstance = instance;
-	$
-			.ajax({
-				url : "http://" + instance.host + ":" + instance.port
-						+ "/topic",
-				success : function(data) {
-					var topic_list = "";
-					var formCreateItemTopicList = "";
-					for (var t = 0; t < data.length; t++) {
-						var topic = data[t];
-						if (topic.Type == "SIMPLE") {
-							formCreateItemTopicList += "<tr><td><input type='checkbox' value='"
-									+ topic.Name
-									+ "' /></td><td>"
-									+ topic.Name
-									+ "</td></tr>";
-						}
-						topic_list += "<tr>";
-						topic_list += "<td><a href='#' onclick='loadTopic(\""
-								+ topic.Name + "\")'>" + topic.Name
-								+ "</a></td>";
-						topic_list += "<td>" + topic.Type + "</td>";
-						topic_list += "</tr>";
-					}
-					$("#topic-list").html(topic_list);
-					$("#form-create-item-topic-list").html(
-							formCreateItemTopicList);
-					$("#form-create-item").prop(
-							'action',
-							"http://" + instance.host + ":" + instance.port
-									+ "/item");
-					$("#form-create-item-submit").prop('disabled', false);
-				},
-				error : function(jqXHR, textStatus, errorThrown) {
-					alert("Error while loading information for "
-							+ instance.toString() + " : " + textStatus + " "
-							+ errorThrown);
-				},
-				dataType : "jsonp"
-			})
+	$.ajax({
+		url : "http://" + instance.host + ":" + instance.port + "/topic",
+		success : function(data) {
+			var topic_list = "";
+			var formCreateItemTopicList = "";
+			for (var t = 0; t < data.length; t++) {
+				var topic = data[t];
+				if (topic.Type == "SIMPLE") {
+					formCreateItemTopicList += "<tr><td><input type='checkbox' name='topic' value='" + topic.Name + "'/></td><td>" + topic.Name + "</td></tr>";
+				}
+				topic_list += "<tr>";
+				topic_list += "<td><a href='#' onclick='loadTopic(\"" + topic.Name + "\")'>" + topic.Name + "</a></td>";
+				topic_list += "<td>" + topic.Type + "</td>";
+				topic_list += "</tr>";
+			}
+			$("#topic-list").html(topic_list);
+			$("#form-create-item-topic-list").html(formCreateItemTopicList);
+			$("#form-create-item").prop('action', "http://" + instance.host + ":" + instance.port + "/item");
+			$("#form-create-item-submit").prop('disabled', false);
+		},
+		error : function(jqXHR, textStatus, errorThrown) {
+			alert("Error while loading information for " + instance.toString() + " : " + textStatus + " " + errorThrown);
+		},
+		dataType : "jsonp"
+	});
 }
 function createItem() {
 	var url = "http://"+currentInstance.host+":"+currentInstance.port+"/item";
-	//$('#form-create-item').prop("action",url);
 	$('#form-create-item').ajaxForm({
 		url 		: url,
 		method 		: "POST",
-		//dataType 	: 'json',
 		success 	: function(response) {
 			$('#form-create-item-submit').prop('disabled', true);
 			$('#form-create-item-alert').prop('color', "green");
@@ -224,11 +208,11 @@ function createItem() {
 	}).submit();
 }
 function addPropertyToNewItem() {
-	$("#form-create-item-property-list").append("<tr><td><input name='property-key' style='width:100%' type='text'/></td><td><input name='property-value' style='width:100%' type='text'/></td><td style='text-align:center'><a href='#' class='button' onclick=\"$('#form-create-item-property-list').html('')\">X</a></td></tr>");
+	$("#form-create-item-property-list").append("<tr><td><input name='property-name' style='width:100%' type='text'/></td><td><input name='property-value' style='width:100%' type='text'/></td><td style='text-align:center'><a href='#' class='button' onclick=\"$('#form-create-item-property-list').html('')\">X</a></td></tr>");
 }
 function clearItem() {
 	$("#form-topic-item-id").val("");
-	var html = "<table><thead><tr><td>Key</td><td>Value</td></tr></thead><tbody></tbody></table>";
+	var html = "<table><thead><tr><td>Name</td><td>Value</td></tr></thead><tbody></tbody></table>";
 	$("#form-topic-item-properties").html("");
 	$("#form-topic-item-value").val("");
 	$("#form-topic-item-alert").html("");
@@ -247,7 +231,7 @@ function popAnItem() {
 			var html = "";
 			for (var p = 0; p < properties.length; p++) {
 				var property = properties[p];
-				html += "<tr><td>" + property.key + "</td><td>"
+				html += "<tr><td>" + property.name + "</td><td>"
 						+ property.value + "</td></tr>";
 			}
 			$("#form-topic-item-properties").html(html);

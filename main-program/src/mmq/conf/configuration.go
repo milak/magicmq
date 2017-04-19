@@ -5,9 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 )
+const SERVICE_ADMIN = "ADMIN"
+const SERVICE_REST 	= "REST"
+const SERVICE_SYNC 	= "SYNC"
 const APP_VERSION = "0.1" // The version of the current application
 type Configuration struct {
 	Version 	string
+	Groups		[]string
 	Topics 		[]*Topic 		`json:"Topics,omitempty"`
 	Instances 	[]*Instance 	`json:"Instances,omitempty"`
 	fileName 	string
@@ -120,19 +124,19 @@ func InitConfiguration(aFileName string) *Configuration {
 	result := Configuration{Version 		: APP_VERSION,fileName 		: aFileName}
 	if _, err := os.Stat(aFileName); os.IsNotExist(err) {
 		result.Services = make([]Service,3)
-		result.Services[0].Name = "ADMIN"
+		result.Services[0].Name = SERVICE_ADMIN
 		result.Services[0].Comment = "This service opens web administration. It requires REST service. Parameter : 'root' directory containing admin web files. Can be replaced by apache httpd."
 		result.Services[0].Active = true
 		result.Services[0].Parameters = make([]Parameter,1)
 		result.Services[0].Parameters[0].Name = "root"
 		result.Services[0].Parameters[0].Value = "web"
-		result.Services[1].Name = "REST"
+		result.Services[1].Name = SERVICE_REST
 		result.Services[1].Comment = "This service opens REST API. Parameter : 'port' the listening port."
 		result.Services[1].Active = true
 		result.Services[1].Parameters = make([]Parameter,1)
 		result.Services[1].Parameters[0].Name = "port"
 		result.Services[1].Parameters[0].Value = "8080"
-		result.Services[2].Name = "SYNC"
+		result.Services[2].Name = SERVICE_SYNC
 		result.Services[2].Comment = "This service opens SYNC port for clusterisation. Parameter : 'port' the listening port."
 		result.Services[2].Active = true
 		result.Services[2].Parameters = make([]Parameter,1)

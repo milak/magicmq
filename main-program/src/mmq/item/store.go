@@ -1,12 +1,15 @@
 package item
 
 import (
+	"mmq/env"
 	"mmq/conf"
+	"github.com/milak/event"
 	"fmt"
 )
+
 type ItemStore struct {
 	itemsByTopic map[string][]Item
-	configuration *conf.Configuration
+	context *env.Context
 }
 
 type StoreError struct {
@@ -14,17 +17,16 @@ type StoreError struct {
 	Topic 	string
 	Item 	string
 }
-
 func (this StoreError) Error() string {
 	return fmt.Sprintf("%s : topic = %s item = %s", this.Message, this.Topic, this.Item)
 }
-func NewStore(aConfiguration *conf.Configuration) *ItemStore{
-	return &ItemStore{itemsByTopic : make(map[string][]Item), configuration : aConfiguration}
+func NewStore(aContext *env.Context) *ItemStore{
+	return &ItemStore{itemsByTopic : make(map[string][]Item), context : aContext}
 }
-func (this *ItemStore)Push(aItem Item) error {
+func (this *ItemStore) Push (aItem Item) error {
 	// Pour chaque topic pour lequel il est enregistré
 	for _,topicName := range aItem.Topics() {
-		topic := this.configuration.GetTopic(topicName)
+		topic := this.context.Configuration.GetTopic(topicName)
 		if topic == nil {
 			return StoreError{"Topic not found",topicName,"nil"}
 		}
@@ -38,11 +40,12 @@ func (this *ItemStore)Push(aItem Item) error {
 		} else {
 			this.itemsByTopic[topicName] = append(this.itemsByTopic[topicName],aItem)
 		}
+		event.EventBus.FireEvent(&ItemAdded{aItem,topic})
 	}
 	return nil
 }
 func (this *ItemStore) Pop(aTopicName string) (Item, error) {
-	topic := this.configuration.GetTopic(aTopicName)
+	topic := this.context.Configuration.GetTopic(aTopicName)
 	if topic == nil {
 		return nil, StoreError{"Topic not found",aTopicName,"nil"}
 	}
