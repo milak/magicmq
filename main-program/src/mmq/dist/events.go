@@ -15,3 +15,7 @@ type InstanceReceived struct {
 type InstanceDisconnected struct {
 	Instance 	*conf.Instance
 }
+type ItemReceived struct {
+	Item 		*ManagedItem
+	From		*conf.Instance
+}

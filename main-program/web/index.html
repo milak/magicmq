@@ -27,7 +27,7 @@
 			</ul>
 			<div id="tabs-1">
 				<div class="tabframe"><h3>Configuration</h3>
-				<form>
+				<!-- form>
 					<div class='select-radio'>
 						<label>Select Dropdown</label> <select>
 							<option value='option1'>Option 1</option>
@@ -54,7 +54,8 @@
 				<div class='controls'>
 					<a rel="Annuler" class="btn" href="#">Annuler</a> <a
 						rel="Enregistrer" class="btn" href="#">Enregistrer</a>
-				</div>
+				</div-->
+					<a href="#" class="button" id="form-config-shutdown" onclick="shutdown()">Shutdown</a>
 				</div>
 			</div>
 			<div id="tabs-2">
@@ -70,13 +71,22 @@
 					<label>Id</label> :					<input id="form-topic-item-id" type="text" readonly="true"/><br/>
 					<label>Properties</label> :<br/>
 					<table>
-						<thead><tr><td>Key</td><td>Value</td></tr></thead>
+						<thead><tr><td>Key</td><td>Age</td></tr></thead>
 						<tbody id="form-topic-item-properties"></tbody>
 					</table><br/>
 					<label>Value</label> :<br/>
 					<textarea style="width:100%;" id="form-topic-item-value" readonly="true"></textarea><br/>
 					<hr/>
-					<a href="#" class="button" id="form-topic-button" onclick="popAnItem()">Pop item</a> <span id="form-topic-item-alert" style="color:red"></span>
+					<a href="#" class="button" id="form-topic-button" onclick="listItems()">List items</a>
+					<a href="#" class="button" id="form-topic-button" onclick="popAnItem()">Pop item</a>
+					<span id="form-topic-item-alert" style="color:red">
+					</span>
+					<div>
+						<table>
+							<thead><tr><th>Item</th><th>Action</th></tr></thead>
+							<tbody id="form-topic-item-list"></tbody>
+						</table>
+					</div>
 				</div>
 			</div>
 			<div id="tabs-4">

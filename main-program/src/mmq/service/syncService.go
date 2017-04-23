@@ -6,6 +6,7 @@ import (
 	"mmq/env"
 	"mmq/dist"
 	"github.com/milak/event"
+	"reflect"
 	"time"
 )
 /**
@@ -51,20 +52,24 @@ func (this *SyncService) Start (){
 }
 // Catch event InstanceRemoved
 func (this *SyncService) Event(aEvent interface{}) {
+	this.logger.Println("Event received")
 	switch e:= aEvent.(type) {
-		case conf.InstanceRemoved :
+		case *conf.InstanceRemoved :
 			instanceConnection := this.pool.GetInstanceByName(e.Instance.Name())
 			if instanceConnection != nil {
 				instanceConnection.Close()
 			}
-		case dist.TopicReceived :
+		case *dist.TopicReceived :
+			this.logger.Println("TopicReceived")
+			this.logger.Println("Received topic : " + e.Topic.Name)
 			existingTopic := this.context.Configuration.GetTopic(e.Topic.Name)
 			if existingTopic != nil {
 				this.logger.Println("Skipped because allready known")
 			} else {
 				this.context.Configuration.AddTopic(e.Topic)
 			}
-		case dist.InstanceReceived :
+		case *dist.InstanceReceived :
+			this.logger.Println("InstanceReceived")
 			if (e.Instance.Host == this.context.Host) && (e.Instance.Port == this.port) {
 				this.logger.Println("Skipped instance cause it is me :)")
 			} else {
@@ -73,11 +78,17 @@ func (this *SyncService) Event(aEvent interface{}) {
 					this.logger.Println("Added instance :",e.Instance)
 				}
 			}
-		case dist.InstanceDisconnected :
+		case *dist.InstanceDisconnected :
+			this.logger.Println("InstanceDisconnected")
 			instanceConnection := this.pool.GetInstanceByName(e.Instance.Name())
 			if instanceConnection != nil {
 				instanceConnection.Close()
 			}
+		case *dist.ItemReceived :
+			this.logger.Println("ItemReceived item :",e.Item," from :",e.From)
+			
+		default:
+			this.logger.Println("Unknown",reflect.TypeOf(aEvent))
 	}
 }
 /**

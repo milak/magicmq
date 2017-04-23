@@ -3,11 +3,8 @@ package conf
 import (
 	"os"
 	"encoding/json"
-	"fmt"
 )
-const SERVICE_ADMIN = "ADMIN"
-const SERVICE_REST 	= "REST"
-const SERVICE_SYNC 	= "SYNC"
+const PARAMETER_PORT = "port"
 const APP_VERSION = "0.1" // The version of the current application
 type Configuration struct {
 	Version 	string
@@ -15,14 +12,9 @@ type Configuration struct {
 	Topics 		[]*Topic 		`json:"Topics,omitempty"`
 	Instances 	[]*Instance 	`json:"Instances,omitempty"`
 	fileName 	string
-	Services 	[]Service
+	Services 	[]*Service
 }
-type Service struct {
-	Name 		string
-	Comment 	string
-	Active 		bool
-	Parameters 	[]Parameter `json:"Parameters,omitempty"`
-}
+
 type Parameter struct {
 	Name 		string
 	Value 		string
@@ -31,7 +23,6 @@ func (this *Configuration) AddInstance(aInstance *Instance) bool{
 	if this.GetInstance(aInstance.Name()) != nil {
 		return false
 	}
-	fmt.Println("configuration.go: Adding instance",aInstance)
 	this.Instances = append(this.Instances,aInstance)
 	this.save()
 	return true
@@ -49,7 +40,6 @@ func (this *Configuration) GetInstance(aName string) *Instance{
  */
 func (this *Configuration) RemoveInstance(aInstanceName string) *Instance {
 	found := false
-	fmt.Println("RemoveInstance",aInstanceName)
 	var instance *Instance
 	for i := range this.Instances {
 		instance = this.Instances[i]
@@ -91,8 +81,7 @@ func (this *Configuration) GetTopic(aName string) *Topic {
  */
 func (this *Configuration) RemoveTopic(aTopicName string) bool {
 	found := false
-	for i := range this.Topics {
-		topic := this.Topics[i]
+	for i,topic := range this.Topics {
 		if (topic.Name == aTopicName){
 			this.Topics = append(this.Topics[0:i],this.Topics[i+1:]...)
 			found = true
@@ -103,6 +92,14 @@ func (this *Configuration) RemoveTopic(aTopicName string) bool {
 		this.save()
 	}
 	return found
+}
+func (this *Configuration) GetServiceByName(aServiceName string) *Service {
+	for _,service := range this.Services{
+		if service.Name == aServiceName {
+			return service
+		}
+	}
+	return nil
 }
 /**
  * Swap the configuration in file
@@ -123,7 +120,8 @@ func (this *Configuration) save(){
 func InitConfiguration(aFileName string) *Configuration {
 	result := Configuration{Version 		: APP_VERSION,fileName 		: aFileName}
 	if _, err := os.Stat(aFileName); os.IsNotExist(err) {
-		result.Services = make([]Service,3)
+		result.Groups = []string{"all"}
+		result.Services = make([]*Service,3)
 		result.Services[0].Name = SERVICE_ADMIN
 		result.Services[0].Comment = "This service opens web administration. It requires REST service. Parameter : 'root' directory containing admin web files. Can be replaced by apache httpd."
 		result.Services[0].Active = true
@@ -151,6 +149,9 @@ func InitConfiguration(aFileName string) *Configuration {
 		defer file.Close()
 		decoder := json.NewDecoder(file)
 		decoder.Decode(&result)
+		if result.Groups == nil {
+			result.Groups = []string{"all"}
+		}
 		if result.Topics == nil {
 			result.Topics = make ([]*Topic,0)
 		}

@@ -5,10 +5,11 @@ import (
 	"mmq/conf"
 	"github.com/milak/event"
 	"fmt"
+	"errors"
 )
 
 type ItemStore struct {
-	itemsByTopic map[string][]Item
+	itemsByTopic map[string][]*Item
 	context *env.Context
 }
 
@@ -21,11 +22,12 @@ func (this StoreError) Error() string {
 	return fmt.Sprintf("%s : topic = %s item = %s", this.Message, this.Topic, this.Item)
 }
 func NewStore(aContext *env.Context) *ItemStore{
-	return &ItemStore{itemsByTopic : make(map[string][]Item), context : aContext}
+	result := &ItemStore{itemsByTopic : make(map[string][]*Item), context : aContext}
+	return result
 }
-func (this *ItemStore) Push (aItem Item) error {
+func (this *ItemStore) Push (aItem *Item) error {
 	// Pour chaque topic pour lequel il est enregistré
-	for _,topicName := range aItem.Topics() {
+	for _,topicName := range aItem.Topics {
 		topic := this.context.Configuration.GetTopic(topicName)
 		if topic == nil {
 			return StoreError{"Topic not found",topicName,"nil"}
@@ -35,7 +37,7 @@ func (this *ItemStore) Push (aItem Item) error {
 		}
 		items := this.itemsByTopic[topicName]
 		if items == nil {
-			this.itemsByTopic[topicName] = make([]Item,1)
+			this.itemsByTopic[topicName] = make([]*Item,1)
 			this.itemsByTopic[topicName][0] = aItem
 		} else {
 			this.itemsByTopic[topicName] = append(this.itemsByTopic[topicName],aItem)
@@ -44,7 +46,7 @@ func (this *ItemStore) Push (aItem Item) error {
 	}
 	return nil
 }
-func (this *ItemStore) Pop(aTopicName string) (Item, error) {
+func (this *ItemStore) Pop(aTopicName string) (*Item, error) {
 	topic := this.context.Configuration.GetTopic(aTopicName)
 	if topic == nil {
 		return nil, StoreError{"Topic not found",aTopicName,"nil"}
@@ -60,22 +62,50 @@ func (this *ItemStore) Pop(aTopicName string) (Item, error) {
 		}
 	} else {
 		subTopics := topic.TopicList
-		// TODO prendre en compte la stratégie : 
-		// strategy := topic.GetParameterByName(conf.STRATEGY)
-		// Par défaut on est en mode ORDERED : on vide le premier topic avant de vider le second
-		// Pour implémenter ROUND-ROBIN, il va falloir conserver un indicateur pour savoir la file que l'on a lu le coup précédent  
-		for _,subTopicName := range subTopics {
-			//faut-il vérifier que le topic existe ? subTopic := this.configuration.GetTopic(subTopicName)
-			items := this.itemsByTopic[subTopicName]
-			if len(items) != 0 {
-				item := items[0]
-				this.itemsByTopic[subTopicName] = items[1:]
-				return item, nil
+		strategy := topic.GetParameterByName(conf.PARAMETER_STRATEGY)
+		if strategy == "" {
+			strategy = conf.ORDERED
+		}
+		if strategy == conf.ORDERED {
+			// Par défaut on est en mode ORDERED : on vide le premier topic avant de vider le second
+			for _,subTopicName := range subTopics {
+				//faut-il vérifier que le topic existe ? subTopic := this.configuration.GetTopic(subTopicName)
+				items := this.itemsByTopic[subTopicName]
+				if len(items) != 0 {
+					item := items[0]
+					this.itemsByTopic[subTopicName] = items[1:]
+					return item, nil
+				}
 			}
+		} else if strategy == conf.ROUND_ROBIN {
+			// TODO implémenter la stratégie ROUND-ROBIN 
+			// Pour implémenter ROUND-ROBIN, il va falloir conserver un indicateur pour savoir la file que l'on a lu le coup précédent
+			return nil, errors.New("ROUND ROBIN strategy not yet implemented")
+		} else {
+			return nil, errors.New(strategy + " strategy not recognized")
 		}
 		return nil, nil
 	}
 }
-func (this *ItemStore)Count(aTopicName string) int {
+func (this *ItemStore) RemoveItem(aTopicName string, aItem *Item) {
+	items := this.itemsByTopic[aTopicName]
+	for i,item := range items {
+		if item.ID == aItem.ID {
+			this.itemsByTopic[aTopicName] = append(items[0:i],items[i+1:]...)
+			return
+		}
+	}
+}
+func (this *ItemStore) List(aTopicName string) []*Item {
+	result := this.itemsByTopic[aTopicName]
+	if result == nil {
+		topic := this.context.Configuration.GetTopic(aTopicName)
+		if topic != nil {
+			result = []*Item{}
+		}
+	}
+	return result
+}
+func (this *ItemStore) Count(aTopicName string) int {
 	return len(this.itemsByTopic[aTopicName])
 }

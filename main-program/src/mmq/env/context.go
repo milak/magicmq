@@ -1,10 +1,10 @@
 package env
 
 import (
-	"mmq/conf"
 	"log"
-	"os"
+	"mmq/conf"
 	"github.com/milak/network"
+	"os"
 )
 type Context struct {
 	Running			bool
@@ -17,7 +17,7 @@ func NewContext() *Context {
 	file, err := os.Create("mmq.log")
 	if err != nil {
 		logger = log.New(os.Stdout, "-", log.Lshortfile)
-		logger.Println("Unable to open file ")
+		logger.Println("Unable to open file mmq.log")
 	} else {
 		logger = log.New(file, "-", log.Lshortfile)
 	}

@@ -25,7 +25,7 @@ func NewProtocol(aContext *env.Context) *protocol {
 	for _,service := range aContext.Configuration.Services {
 		if service.Name == conf.SERVICE_SYNC {
 			for _,parameter := range service.Parameters {
-				if parameter.Name == "port" {
+				if parameter.Name == conf.PARAMETER_PORT {
 					result.port = parameter.Value
 				}
 			}
@@ -37,7 +37,7 @@ func NewProtocol(aContext *env.Context) *protocol {
  * Internal method that splits a command received from remote 
  */
 func (this *protocol) splitCommand(line []byte) (command string, arguments []byte, remain []byte, needMore int) {
-	this.logger.Println("Splitting ",string(line))
+	//this.logger.Println("Splitting ",string(line))
 	// Synchronize with firts DIEZE
 	if line[0] != dieze {
 		return "",[]byte{},line,0
@@ -49,7 +49,7 @@ func (this *protocol) splitCommand(line []byte) (command string, arguments []byt
 		command += string(line[i])
 		i++
 	}
-	this.logger.Println("Splitting - command found ",command)
+	//this.logger.Println("Splitting - command found ",command)
 	// Obtain the LENGTH
 	i++
 	slength := ""
@@ -58,7 +58,7 @@ func (this *protocol) splitCommand(line []byte) (command string, arguments []byt
 		i++
 	}
 	i++
-	this.logger.Println("Splitting - slength found ",slength)
+	//this.logger.Println("Splitting - slength found ",slength)
 	length,_ := strconv.Atoi(slength)
 	// Check wether the whole data has been received
 	remain = []byte{}
@@ -66,19 +66,19 @@ func (this *protocol) splitCommand(line []byte) (command string, arguments []byt
 	tailleRestantALire := len(line) - i
 	// Missing the end the data
 	if length > tailleRestantALire { // la longueur de la donnée annoncée > tailleRestantALire
-		this.logger.Println("Splitting - not finished arguments found ",string(arguments))
+		//this.logger.Println("Splitting - not finished arguments found ",string(arguments))
 		arguments = line[i:]
 		needMore = length - tailleRestantALire // la longueur de la donnée annoncée - la tailleRestantALire + un dieze
-		this.logger.Println("Splitting - need more",needMore)
+		//this.logger.Println("Splitting - need more",needMore)
 	} else { // All the data has been obtained
 		arguments = line[i:i+length]
-		this.logger.Println("Splitting - arguments found ",string(arguments))
+		//this.logger.Println("Splitting - arguments found ",string(arguments))
 		// check wether a part of a next command is found in the data received
 		if (i+length) == len(line) {
-			this.logger.Println("Splitting - nothing remain")
+			//this.logger.Println("Splitting - nothing remain")
 		} else {
 			remain = line[i+length:]
-			this.logger.Println("Splitting - something remain", string(remain))
+			//this.logger.Println("Splitting - something remain", string(remain))
 		}
 	}
 	return command, arguments, remain, needMore
@@ -92,7 +92,7 @@ func (this *protocol) splitCommand(line []byte) (command string, arguments []byt
  * @param connection : an open connection
  */
 func (this *protocol) sendCommand(command string, arguments []byte, connection net.Conn){
-	this.logger.Println("sending",command,string(arguments))
+	this.logger.Println("DEBUG sending",command,string(arguments))
 	connection.Write([]byte("#"+command+"#"+strconv.Itoa(len(arguments))+"#"))
 	connection.Write(arguments)
 }
@@ -116,13 +116,13 @@ func (this *protocol) keepConnected(aInstance *conf.Instance, aConnection *net.C
 		time.Sleep(1 * time.Second)
 		// reintroduce remain from previous command
 		if len(remain) > 0 {
-			this.logger.Println("Reusing remain",remain)
+			//this.logger.Println("Reusing remain",remain)
 			buffer = remain
 		} else {
-			this.logger.Println("Listening to remote")
+			//this.logger.Println("Listening to remote")
 			count,err := connection.Read(buffer)
 			if err != nil {
-				this.logger.Println("Lost connection with",aInstance.Name(),err)
+				this.logger.Println("INFO Lost connection with",aInstance.Name(),err)
 				event.EventBus.FireEvent(&InstanceDisconnected{Instance : aInstance})
 				break
 			}
@@ -131,14 +131,14 @@ func (this *protocol) keepConnected(aInstance *conf.Instance, aConnection *net.C
 		// Parse data received
 		command, arguments, remain, needMore = this.splitCommand(buffer)
 		if needMore != 0 {
-			this.logger.Println("Unfinished",arguments,", need",needMore,"bytes")
+			//this.logger.Println("Unfinished",arguments,", need",needMore,"bytes")
 			var bufferNeeded bytes.Buffer // Todo in the future use a swap in disk for ITEM command
 			remain = this.takeMore(connection,needMore,&bufferNeeded)
 			arguments = append(arguments,bufferNeeded.Bytes()...)
-			this.logger.Println("Finally got",string(arguments))
+			//this.logger.Println("Finally got",string(arguments))
 		}
 		// Process the command
-		this.logger.Println("Received command " + command,remain)
+		this.logger.Println("DEBUG Received command " + command,remain)
 		// Received HELLO from called
 		if command == "HELLO" { // On est côté appelant, on reçoit la réponse de l'appelé, on lui envoie la configuration
 			this.sendConfiguration(&connection)
@@ -148,7 +148,7 @@ func (this *protocol) keepConnected(aInstance *conf.Instance, aConnection *net.C
 			decoder := json.NewDecoder(byteBuffer)
 			decoder.Decode(&newInstances)
 			for _,newInstance := range newInstances {
-				this.logger.Println("Received instance :",newInstance)
+				this.logger.Println("DEBUG Received instance :",newInstance)
 				event.EventBus.FireEvent(&InstanceReceived{Instance : newInstance, From : aInstance})
 			}
 		} else if command == "TOPICS" { // Receive topic list
@@ -157,13 +157,20 @@ func (this *protocol) keepConnected(aInstance *conf.Instance, aConnection *net.C
 			decoder := json.NewDecoder(byteBuffer)
 			decoder.Decode(&distributedTopics)
 			for _,topic := range distributedTopics {
-				this.logger.Println("Received topic :",topic)
+				this.logger.Println("DEBUG Received topic :",topic)
 				event.EventBus.FireEvent(&TopicReceived{Topic : topic, From : aInstance})
 			}
+		} else if command == "ITEM" { // Receive item
+			var item *ManagedItem
+			byteBuffer = bytes.NewBuffer(arguments)
+			decoder := json.NewDecoder(byteBuffer)
+			decoder.Decode(item)
+			this.logger.Println("DEBUG Received item :",item)
+			event.EventBus.FireEvent(&ItemReceived{Item : item, From : aInstance})
 		} else if command == "ERROR" {
-			this.logger.Println("Received ERROR :",arguments)
+			this.logger.Println("WARNING Received ERROR :",arguments)
 		} else {
-			this.logger.Println("Not supported command")
+			this.logger.Println("WARNING Not supported command")
 			this.sendCommand("ERROR",[]byte("NOT SUPPORTED COMMAND '"+command+"'"),connection)
 		}
 	}
@@ -174,7 +181,7 @@ func (this *protocol) keepConnected(aInstance *conf.Instance, aConnection *net.C
  *   * the distributed topics
  */
 func (this *protocol) sendConfiguration(aConnection *net.Conn){
-	this.logger.Println("Sending configuration")
+	//this.logger.Println("Sending configuration")
 	var buffer bytes.Buffer
 	encoder := json.NewEncoder(&buffer)
 	encoder.Encode(this.context.Configuration.Instances)
@@ -188,7 +195,7 @@ func (this *protocol) sendConfiguration(aConnection *net.Conn){
 	}
 	if len (distibutedTopics) > 0 {
 		encoder.Encode(distibutedTopics)
-		this.logger.Println("Sending topics ", string(buffer.Bytes()))
+		//this.logger.Println("Sending topics ", string(buffer.Bytes()))
 		this.sendCommand("TOPICS",buffer.Bytes(),*aConnection)
 	}
 }
@@ -197,34 +204,34 @@ func (this *protocol) sendConfiguration(aConnection *net.Conn){
  */
 func (this *protocol) handleConnection (aConn net.Conn) (*conf.Instance, error) {
 	this.context.Host,_,_ = net.SplitHostPort(aConn.LocalAddr().String())
-	this.logger.Println("Processing call")
+	this.logger.Println("DEBUG Processing call")
 	buffer := make([]byte,1000)
 	count,err := aConn.Read(buffer)
 	if err != nil {
-		this.logger.Println("Unable to read HELLO from remote",err)
+		//this.logger.Println("Unable to read HELLO from remote",err)
 		return nil,err
 	}
 	if count < 10 {
-		this.logger.Println("Unable to read HELLO from remote ",buffer[0:count])
-		this.sendCommand("ERROR",[]byte("Unable to understand"),aConn)
-		return nil,err
-	}
-	command, arguments, remain, needMore := this.splitCommand(buffer[0:count])
-	if needMore > 0 {
-		this.logger.Println("Unfinished",arguments,", need",needMore,"bytes")
-		var bufferNeeded bytes.Buffer
-		remain = this.takeMore(aConn,needMore,&bufferNeeded)
-		arguments = append(arguments,bufferNeeded.Bytes()...)
-		this.logger.Println("Finally got",string(arguments))
-	}
-	if command == "" {
-		this.logger.Println("Unable to read HELLO from remote")
+		//this.logger.Println("Unable to read HELLO from remote ",buffer[0:count])
 		this.sendCommand("ERROR",[]byte("Unable to understand"),aConn)
 		return nil,errors.New("Unable to understand")
 	}
-	this.logger.Println("Received ",command,"-",arguments,"-",remain)
+	command, arguments, remain, needMore := this.splitCommand(buffer[0:count])
+	if needMore > 0 {
+		//this.logger.Println("Unfinished",arguments,", need",needMore,"bytes")
+		var bufferNeeded bytes.Buffer
+		remain = this.takeMore(aConn,needMore,&bufferNeeded)
+		arguments = append(arguments,bufferNeeded.Bytes()...)
+		//this.logger.Println("Finally got",string(arguments))
+	}
+	if command == "" {
+		//this.logger.Println("Unable to read HELLO from remote")
+		this.sendCommand("ERROR",[]byte("Unable to understand"),aConn)
+		return nil,errors.New("Unable to understand")
+	}
+	//this.logger.Println("Received ",command,"-",arguments,"-",remain)
 	if command != "HELLO" {
-		this.logger.Println("Unable to read HELLO from remote ")
+		//this.logger.Println("Unable to read HELLO from remote ")
 		this.sendCommand("ERROR",[]byte("Unable to understand"),aConn)
 		return nil,errors.New("Unable to understand " + command)
 	}
@@ -235,10 +242,9 @@ func (this *protocol) handleConnection (aConn net.Conn) (*conf.Instance, error) 
 	instance.Connected = true
 	for len(remain) > 0 {
 		command, arguments, remain, needMore = this.splitCommand(remain)
-		this.logger.Println("Received command " + command,arguments,remain,needMore)
+		this.logger.Println("DEBUG Received command " + command,arguments,remain,needMore)
 	}
 	this.sendCommand("HELLO",[]byte(this.context.Host+":"+this.port),aConn) // TODO échanger leur numéros de version
-	
 	this.sendConfiguration(&aConn)
 	go this.keepConnected(instance,&aConn)
 	return instance, nil
@@ -253,7 +259,7 @@ func (this *protocol) takeMore(connection net.Conn, needMore int, writer io.Writ
 	for total < needMore {
 		count,err := connection.Read(buffer)
 		if err != nil {
-			this.logger.Println("Failed to read following needed bytes")
+			this.logger.Println("WARNING Failed to read following needed bytes")
 			return
 		}
 		if count + total > needMore {

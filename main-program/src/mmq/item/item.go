@@ -3,49 +3,40 @@ package item
 import (
 	"io"
 	"math"
+	"time"
 	"github.com/google/uuid"
-	"mmq/conf"
 )
-// Event
-type ItemAdded struct {
-	Item 	Item
-	Topic	*conf.Topic
-}
 
-type Item interface {
+
+/*type Item struct {
 	io.Reader
-	ID() 			string
-	Topics() 		[]string
+	ID 				string
+	Topics	 		[]string
 	Reset()
 	Properties() 	[]Property
 	AddProperty(aName,aValue string) *Property
-}
+}*/
 type Property struct {
 	Name string
 	Value string
 }
-type memoryItem struct {
-	id 			string
-	topics		[]string
-	value 		[]byte
-	ptr 		int
-	properties 	[]Property
+type Item struct {
+	ID 				string
+	Topics			[]string
+	creationDate	time.Time
+	value 			[]byte
+	ptr 			int
+	Properties 		[]Property
 }
-func (this *memoryItem) ID() string {
-	return this.id
+func NewItem (aValue []byte, aTopics []string) *Item{
+	return &Item{ID : uuid.New().String(), creationDate : time.Now(), value : aValue, Topics : aTopics, ptr : 0}
 }
-func (this *memoryItem) AddProperty(aName,aValue string) *Property {
+func (this *Item) AddProperty(aName,aValue string) *Property {
 	result := Property{Name : aName, Value : aValue}
-	this.properties = append(this.properties,result)
+	this.Properties = append(this.Properties,result)
 	return &result
 }
-func (this *memoryItem) Properties() []Property {
-	return this.properties
-}
-func (this *memoryItem) Topics() []string {
-	return this.topics
-}
-func (this *memoryItem) Read(dest []byte) (n int, err error) {
+func (this *Item) Read(dest []byte) (n int, err error) {
 	if this.ptr >= len(this.value) {
 		return 0,io.EOF
 	} else {
@@ -56,9 +47,10 @@ func (this *memoryItem) Read(dest []byte) (n int, err error) {
 		return count,nil
 	}
 }
-func (this *memoryItem) Reset() {
-	this.ptr = 0
+func (this *Item) GetAge() time.Duration {
+	now := time.Now()
+	return now.Sub(this.creationDate)
 }
-func NewMemoryItem (aValue []byte, aTopics []string) Item{
-	return &memoryItem{id : uuid.New().String(), value : aValue, topics : aTopics, ptr : 0}
+func (this *Item) Reset() {
+	this.ptr = 0
 }

@@ -4,6 +4,7 @@ import (
 	"mmq/env"
 	"mmq/item"
 	"mmq/conf"
+	"mmq/dist"
 	"github.com/milak/event"
 	"github.com/milak/math"
 	"strconv"
@@ -11,26 +12,37 @@ import (
 )
 
 type ItemProcessorService struct {
-	context *env.Context
+	context 	*env.Context
+	pool 		*dist.InstancePool
 }
 
-func NewItemProcessorService(aContext *env.Context) *ItemProcessorService {
-	result := &ItemProcessorService{context: aContext}
+func NewItemProcessorService(aContext *env.Context,aPool *dist.InstancePool) *ItemProcessorService {
+	result := &ItemProcessorService{context: aContext,pool:aPool}
 	return result
 }
 
 // Catch event ItemAdded
 func (this *ItemProcessorService) Event(aEvent interface{}) {
 	switch e := aEvent.(type) {
-	case item.ItemAdded:
+	case *item.ItemAdded:
 		if e.Topic.IsDistributed() {
-			distributionPolicy := *(e.Topic.GetParameterByName(conf.PARAMETER_DISTRIBUTED))
+			distributionPolicy := e.Topic.GetParameterByName(conf.PARAMETER_DISTRIBUTED)
+			this.context.Logger.Println("Received new distributed item policy :",distributionPolicy)
+			if distributionPolicy == "0" || distributionPolicy == "1" || distributionPolicy == "" {
+				this.context.Logger.Println("No need to distribute : distributionPolicy == '"+distributionPolicy+"'")
+				return
+			} 
 			var nbInstances = 0
 			for _, i := range this.context.Configuration.Instances {
 				if i.Connected {
 					nbInstances++
 				}
 			}
+			if nbInstances == 0 {
+				this.context.Logger.Println("Unable to apply distribution : no connected instances")
+				return
+			}
+			this.context.Logger.Println("I am connected with :",nbInstances,"instances")
 			nbInstances++ // on ajoute l'instance courante en plus
 			var count int
 			var err error
@@ -40,7 +52,7 @@ func (this *ItemProcessorService) Event(aEvent interface{}) {
 			} else if strings.HasSuffix(distributionPolicy, "%") {
 				percent, err := strconv.Atoi(distributionPolicy[0 : len(distributionPolicy)-1])
 				if err != nil {
-					this.context.Logger.Println("Unable to apply distribution : ", distributionPolicy, e.Topic.Name, "nil")
+					this.context.Logger.Println("Unable to apply distribution : ", distributionPolicy, e.Topic.Name, "nil", err)
 					return
 				}
 				count = (percent * nbInstances / 100)
@@ -60,9 +72,28 @@ func (this *ItemProcessorService) Event(aEvent interface{}) {
 					count = nbInstances
 				}
 			}
+			this.context.Logger.Println("The item must be distributed with :",count,"instances (including me)")
+			count-- // removing myself
+			this.context.Logger.Println("Looking for :",count," instances to share with me")
 			// distribute item to other instances
-			for count > 1 {
-
+			var item dist.ManagedItem
+			item.Item = e.Item
+			for _, i := range this.context.Configuration.Instances {
+				if count <= 0 {
+					break
+				}
+				if i.Connected {
+					this.context.Logger.Println("Selected",i)
+					item.AddInstance(i.Name())
+					count--
+				}
+			}
+			for _,i := range item.Instances {
+				instanceConnection := this.pool.GetInstanceByName(i)
+				if instanceConnection != nil {
+					this.context.Logger.Println("Distributing with",i)
+					instanceConnection.SendItem(item)
+				}
 			}
 		}
 	}

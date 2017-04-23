@@ -1,3 +1,9 @@
+/**
+ * Magic MQ admin script page.
+ */
+/**
+ * Object Instance
+ */
 var Instance = function(aHost, aPort) {
 	this.host = aHost;
 	this.port = aPort;
@@ -19,6 +25,9 @@ function toInstance(aName) {
 	};
 }
 var instances = new Array();
+/**
+ * Object Store
+ */
 var store = {
 	isEmpty : function() {
 		var instance_list = getCookie("instance_list")
@@ -67,6 +76,10 @@ var store = {
 		return result;
 	}
 };
+//
+// Display fonctions 
+//
+
 function addInstancePanel(instance, error) {
 	var html = '<div><p>';
 	if (error != null) {
@@ -74,12 +87,44 @@ function addInstancePanel(instance, error) {
 		// html += '<button
 		// onclick="loadInstance(\''+instance.toString()+'\',false)"></button><br/>';
 	} else {
-		html += 'Version : ' + instance.version + '<br/>';
+		html += '<b>Version</b> : ' + instance.version + '<br/>';
 	}
+	html += '<b>Groups</b> : ';
+	if (typeof instance.groups != "undefined") {
+		for (var i = 0; i < instance.groups.length; i++){
+			if (i != 0){
+				html += ", ";
+			}
+			html += instance.groups[i];
+		}
+	}
+	html += '<br/>'
 	html += '<a href="#" class="button">Remove instance</a>';
 	$('#accordion').append(
 			'<h3>' + instance.toString() + '</h3>' + html + '</p></div>')
 			.accordion("refresh");
+}
+function shutdown() {
+	if (!confirm("Voulez-vous vraiment arrêter ce serveur ?")){
+		return;
+	}
+	var url = "http://" + currentInstance.host + ":" + currentInstance.port + "/shutdown";
+	$.ajax({
+		url : url,
+		success : function(data) {
+			var instance = new Instance(data.Host, data.Port);
+			instance.version = data.Version;
+			instance.groups = data.Groups;
+			addInstancePanel(instance, null);
+			if (addToList) {
+				store.addInstance(instance);
+			}
+		},
+		error : function(jqXHR, textStatus, errorThrown) {
+			addInstancePanel(instance, "Unreachable " + errorThrown);
+		},
+		dataType : "json"
+	});
 }
 function loadInstance(instance, addToList) {
 	var url = "http://" + instance.host + ":" + instance.port + "/info";
@@ -88,6 +133,7 @@ function loadInstance(instance, addToList) {
 		success : function(data) {
 			var instance = new Instance(data.Host, data.Port);
 			instance.version = data.Version;
+			instance.groups = data.Groups;
 			addInstancePanel(instance, null);
 			if (addToList) {
 				store.addInstance(instance);
@@ -137,8 +183,7 @@ function loadTopic(aTopicName) {
 	$("#form-topic-button").prop('disabled', true);
 	currentTopic = null;
 	$.ajax({
-		url : "http://" + currentInstance.host + ":" + currentInstance.port
-				+ "/topic/" + aTopicName,
+		url : "http://" + currentInstance.host + ":" + currentInstance.port + "/topic/" + aTopicName,
 		success : function(data) {
 			currentTopic = data.Name;
 			$("#tabs").tabs("option", "active", 2);
@@ -217,10 +262,31 @@ function clearItem() {
 	$("#form-topic-item-value").val("");
 	$("#form-topic-item-alert").html("");
 }
+function listItems() {
+	var url = "http://" + currentInstance.host + ":" + currentInstance.port + "/topic/" + currentTopic + "/list";
+	$("#form-topic-item-list").html("");
+	$.ajax({
+		url : url,
+		success : function(items, textStatus, jqXHR) {
+			html = "";
+			for (var i = 0; i < items.length; i++) {
+				item = items[i];
+				html += "<tr><td>"+item.ID+"</td><td>"+Math.round(parseInt(item.Age)/1000000)+" ms</td></tr>";
+			}
+			$("#form-topic-item-list").html(html);
+		},
+		error : function(jqXHR, textStatus, errorThrown) {
+			$("#form-topic-item-alert").html(errorThrown);
+			setTimeout(function() {
+				$("#form-topic-item-alert").html("");
+			}, 1200);
+		},
+		dataType : "json"
+	});
+}
 function popAnItem() {
 	clearItem();
-	var url = "http://" + currentInstance.host + ":" + currentInstance.port
-			+ "/topic/" + currentTopic + "/pop";
+	var url = "http://" + currentInstance.host + ":" + currentInstance.port	+ "/topic/" + currentTopic + "/pop";
 	$.ajax({
 		url : url,
 		success : function(data, textStatus, jqXHR) {
@@ -261,6 +327,7 @@ $(function() {
 			success : function(data) {
 				var instance = new Instance(data.Host, data.Port);
 				instance.version = data.Version;
+				instance.groups = data.Groups;
 				addInstancePanel(instance, null);
 				store.addInstance(instance);
 				loadInformation(instance);

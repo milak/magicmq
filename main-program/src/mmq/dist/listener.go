@@ -25,7 +25,7 @@ func (this *Listener) Start(){
 		}
 		if service.Name == "SYNC" {
 			found := false
-			this.logger.Println("starting...")
+			this.logger.Println("INFO starting...")
 			for p := range service.Parameters {
 				if service.Parameters[p].Name == "port" {
 					this.port = service.Parameters[p].Value
@@ -46,18 +46,18 @@ func (this *Listener) Start(){
  * @param aPort : the listening port
  */
 func (this *Listener) doListen (aPort string) {
-	this.logger.Println("listening on port",aPort,"...")
+	this.logger.Println("DEBUG listening on port",aPort,"...")
 	var err error
 	this.listener, err = net.Listen("tcp", ":"+aPort)
 	if err != nil {
-		this.logger.Println("listening failed",err)
+		this.logger.Println("DEBUG listening failed",err)
 	} else {
 		for this.running {
 			conn, err := this.listener.Accept()
 			if err != nil {
-				this.logger.Println("Failed to listen",err)
+				this.logger.Println("WARNING Failed to listen",err)
 			} else {
-				this.logger.Println("caught a call")
+				this.logger.Println("INFO caught a call")
 				instance,err := this.protocol.handleConnection(conn)
 				if err != nil {
 					this.pool.newInstanceConnection(instance,&conn)

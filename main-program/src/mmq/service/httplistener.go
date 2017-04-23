@@ -2,12 +2,14 @@ package service
 
 import (
 	"encoding/json"
-	"mmq/env"
-	"mmq/conf"
-	"mmq/item"
 	"github.com/milak/event"
+	"mmq/conf"
+	"mmq/env"
+	"mmq/item"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 )
 
 type HttpService struct {
@@ -17,7 +19,7 @@ type HttpService struct {
 }
 
 func NewHttpService(aContext *env.Context, aStore *item.ItemStore) *HttpService {
-	return &HttpService{context: aContext, store : aStore}
+	return &HttpService{context: aContext, store: aStore}
 }
 func (this *HttpService) notFound(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNotFound)
@@ -41,7 +43,8 @@ func (this *HttpService) infoListener(w http.ResponseWriter, req *http.Request) 
 		Host    string
 		Port    string
 		Name    string
-	}{Version: this.context.Configuration.Version, Host: this.context.Host, Port: this.port, Name: this.context.Host + ":" + this.port})
+		Groups  []string
+	}{Version: this.context.Configuration.Version, Host: this.context.Host, Port: this.port, Name: this.context.Host + ":" + this.port, Groups: this.context.Configuration.Groups})
 	if callback != nil {
 		w.Write([]byte(")"))
 	}
@@ -67,26 +70,33 @@ func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request) 
 			w.WriteHeader(http.StatusNotAcceptable)
 		} else {
 			topics := []string{}
-			for _,topicName := range req.Form["topic"] { 
+			for _, topicName := range req.Form["topic"] {
 				topics = append(topics, topicName)
 			}
 			value := req.Form["value"][0]
-			item := item.NewMemoryItem([]byte(value), topics)
-			for i,key := range req.Form["property-name"] {
+			item := item.NewItem([]byte(value), topics)
+			for i, key := range req.Form["property-name"] {
 				value := req.Form["property-value"][i]
-				item.AddProperty(key,value)
+				item.AddProperty(key, value)
 			}
+			this.context.Logger.Println("Adding item");
 			err := this.store.Push(item)
 			if err != nil {
+				this.context.Logger.Println("Failed to add",err);
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(err.Error()))
 			} else {
+				this.context.Logger.Println("Item added");
 				w.WriteHeader(http.StatusCreated)
 			}
 		}
 	} else {
 		this.methodNotSupported(w, req.Method)
 	}
+}
+type DisplayableItem struct {
+	ID 	string
+	Age time.Duration
 }
 func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
@@ -95,7 +105,7 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 	if req.Method == http.MethodGet {
 		if strings.HasSuffix(topicName, "/pop") {
 			topicName = topicName[0 : len(topicName)-len("/pop")]
-			item,err := this.store.Pop(topicName)
+			item, err := this.store.Pop(topicName)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(err.Error()))
@@ -103,22 +113,41 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 				this.notFound(w)
 			} else {
 				buffer := make([]byte, 1000)
-				w.Header().Add("id", item.ID())
+				w.Header().Add("id", item.ID)
 				properties := "["
-				for i,p := range item.Properties() {
+				for i, p := range item.Properties {
 					if i != 0 {
 						properties += ","
 					}
-					properties += "{\"name\" : \""+p.Name+"\", \"value\" : \""+p.Value+"\"}"
+					properties += "{\"name\" : \"" + p.Name + "\", \"value\" : \"" + p.Value + "\"}"
 				}
 				properties += "]"
-				w.Header().Add("properties",properties)
+				w.Header().Add("properties", properties)
 				count, err := item.Read(buffer)
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
 				} else {
 					w.Write(buffer[0:count])
 				}
+			}
+		} else if strings.HasSuffix(topicName, "/list") {
+			topicName = topicName[0 : len(topicName)-len("/list")]
+			items := this.store.List(topicName)
+			var displayableItems []DisplayableItem
+			for _,i := range items {
+				displayableItems = append(displayableItems,DisplayableItem{ID : i.ID, Age : i.GetAge()})
+			}
+			this.context.Logger.Println("DEBUG items list of "+topicName,displayableItems)
+			w.WriteHeader(http.StatusOK)
+			callback := req.Form["callback"]
+			this.context.Logger.Println("DEBUG callback",callback)
+			if callback != nil {
+				w.Write([]byte(callback[0] + "("))
+			}
+			encoder := json.NewEncoder(w)
+			encoder.Encode(displayableItems)
+			if callback != nil {
+				w.Write([]byte(")"))
 			}
 		} else {
 			topic := this.context.Configuration.GetTopic(topicName)
@@ -166,7 +195,26 @@ func (this *HttpService) instanceListener(w http.ResponseWriter, req *http.Reque
 		}
 	}
 }
-
+func (this *HttpService) logListener(w http.ResponseWriter, req *http.Request) {
+	file, err := os.Open("mmq.log")
+	if err != nil {
+		this.notFound(w)
+		this.context.Logger.Println("Unable to open log file",err)
+	} else {
+		w.WriteHeader(http.StatusOK)
+		data := make([]byte, 100)
+		count, err := file.Read(data)
+		if err != nil {
+			this.context.Logger.Println("Unable to open log file",err)
+		} else {
+			for count > 0 {
+				w.Write(data[:count])
+				count, err = file.Read(data)
+			}
+		}
+		file.Close()
+	}
+}
 func (this *HttpService) shutdownListener(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	this.context.Running = false
@@ -190,6 +238,7 @@ func (this *HttpService) Start() {
 			if root == nil {
 				panic("Configuration error : missing root parameter for ADMIN service")
 			}
+			this.context.Logger.Println("Starting ADMIN service with root '"+ (*root)+"'")
 			http.Handle("/", http.FileServer(http.Dir(*root)))
 		} else if service.Name == "REST" {
 			for p := range service.Parameters {
@@ -207,6 +256,7 @@ func (this *HttpService) Start() {
 			http.HandleFunc("/topic/", this.topicListener)
 			http.HandleFunc("/item", this.itemListener)
 			http.HandleFunc("/info", this.infoListener)
+			http.HandleFunc("/log", this.logListener)
 			http.HandleFunc("/shutdown", this.shutdownListener)
 		}
 	}
