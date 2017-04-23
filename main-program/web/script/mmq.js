@@ -55,6 +55,15 @@ var store = {
 		instance_list += aInstance.host + ":" + aInstance.port;
 		setCookie("instance_list", instance_list, 10);
 	},
+	getInstance : function(aName) {
+		var instances = this.getInstances();
+		for (var i = 0; i < instances.length; i++) {
+			if ((instances[i].host+":"+instances[i].port) == aName) {
+				return instances[i];
+			}
+		}
+		return null;
+	},
 	getInstances : function() {
 		var result = new Array();
 		var instance_list = getCookie("instance_list");
@@ -100,9 +109,7 @@ function addInstancePanel(instance, error) {
 	}
 	html += '<br/>'
 	html += '<a href="#" class="button">Remove instance</a>';
-	$('#accordion').append(
-			'<h3>' + instance.toString() + '</h3>' + html + '</p></div>')
-			.accordion("refresh");
+	$('#accordion').append('<h3>' + instance.toString() + '</h3>' + html + '</p></div>').accordion("refresh");
 }
 function shutdown() {
 	if (!confirm("Voulez-vous vraiment arrêter ce serveur ?")){
@@ -112,22 +119,22 @@ function shutdown() {
 	$.ajax({
 		url : url,
 		success : function(data) {
-			var instance = new Instance(data.Host, data.Port);
+			/**var instance = new Instance(data.Host, data.Port);
 			instance.version = data.Version;
 			instance.groups = data.Groups;
 			addInstancePanel(instance, null);
 			if (addToList) {
 				store.addInstance(instance);
-			}
+			}*/
 		},
 		error : function(jqXHR, textStatus, errorThrown) {
-			addInstancePanel(instance, "Unreachable " + errorThrown);
+			//addInstancePanel(instance, "Unreachable " + errorThrown);
 		},
 		dataType : "json"
 	});
 }
-function loadInstance(instance, addToList) {
-	var url = "http://" + instance.host + ":" + instance.port + "/info";
+function loadInstance(aInstance, addToList) {
+	var url = "http://" + aInstance.host + ":" + aInstance.port + "/info";
 	$.ajax({
 		url : url,
 		success : function(data) {
@@ -140,7 +147,7 @@ function loadInstance(instance, addToList) {
 			}
 		},
 		error : function(jqXHR, textStatus, errorThrown) {
-			addInstancePanel(instance, "Unreachable " + errorThrown);
+			addInstancePanel(aInstance, "Unreachable " + errorThrown);
 		},
 		dataType : "json"
 	});
@@ -189,6 +196,17 @@ function loadTopic(aTopicName) {
 			$("#tabs").tabs("option", "active", 2);
 			$("#form-topic-title").html(data.Name);
 			$("#form-topic-button").prop('disabled', false);
+			$("#form-topic-type").val(data.Type);
+			$("#form-topic-item-id").html("");
+			$("#form-topic-item-properties").html("");
+			$("#form-topic-item-value").val("");
+			$("#form-topic-item-list").html("");
+			var html = "";
+			for (var i = 0; i < data.Parameters.length; i++) {
+				var property = data.Parameters[i];
+				html+="<tr><td>"+property.Name+"</td><td>"+property.Value+"</td></tr>";
+			}
+			$("#form-topic-property-list").html(html);
 		},
 		error : function(jqXHR, textStatus, errorThrown) {
 			alert("Error " + textStatus + " " + errorThrown);
@@ -196,13 +214,24 @@ function loadTopic(aTopicName) {
 		dataType : "jsonp"
 	})
 }
-function loadInformation(instance) {
+function loadInformation(aInstance) {
 	$("#form-topic-title").html("");
 	$("#form-topic-button").prop('disabled', true);
 	$("#form-create-item-submit").prop('disabled', true);
-	currentInstance = instance;
+	$("#form-config-title").html(aInstance.host+":"+aInstance.port);
+	currentInstance = aInstance;
 	$.ajax({
-		url : "http://" + instance.host + ":" + instance.port + "/topic",
+		url : "http://" + aInstance.host + ":" + aInstance.port + "/info",
+		success : function(data) {
+			$("#form-config-version").val(data.Version);
+		},
+		error : function(jqXHR, textStatus, errorThrown) {
+			addInstancePanel(aInstance, "Unreachable " + errorThrown);
+		},
+		dataType : "json"
+	});
+	$.ajax({
+		url : "http://" + aInstance.host + ":" + aInstance.port + "/topic",
 		success : function(data) {
 			var topic_list = "";
 			var formCreateItemTopicList = "";
@@ -218,7 +247,7 @@ function loadInformation(instance) {
 			}
 			$("#topic-list").html(topic_list);
 			$("#form-create-item-topic-list").html(formCreateItemTopicList);
-			$("#form-create-item").prop('action', "http://" + instance.host + ":" + instance.port + "/item");
+			$("#form-create-item").prop('action', "http://" + aInstance.host + ":" + aInstance.port + "/item");
 			$("#form-create-item-submit").prop('disabled', false);
 		},
 		error : function(jqXHR, textStatus, errorThrown) {
@@ -268,12 +297,23 @@ function listItems() {
 	$.ajax({
 		url : url,
 		success : function(items, textStatus, jqXHR) {
-			html = "";
-			for (var i = 0; i < items.length; i++) {
-				item = items[i];
-				html += "<tr><td>"+item.ID+"</td><td>"+Math.round(parseInt(item.Age)/1000000)+" ms</td></tr>";
+			if (items != null) { 
+				html = "";
+				for (var i = 0; i < items.length; i++) {
+					item = items[i];
+					var properties = "";
+					if (item.Properties != null) {
+						for (var p = 0; p < item.Properties.length; p++){
+							if (p > 0){
+								properties += ";";
+							}
+							properties += item.Properties[p].Name+":"+item.Properties[p].Value;
+						}
+					}
+					html += "<tr><td>"+item.ID+"</td><td>"+Math.round(parseInt(item.Age)/1000000)+" ms</td><td>"+properties+"</td></tr>";
+				}
+				$("#form-topic-item-list").html(html);
 			}
-			$("#form-topic-item-list").html(html);
 		},
 		error : function(jqXHR, textStatus, errorThrown) {
 			$("#form-topic-item-alert").html(errorThrown);
@@ -302,6 +342,9 @@ function popAnItem() {
 			}
 			$("#form-topic-item-properties").html(html);
 			$("#form-topic-item-value").val(data);
+			if ($("#form-topic-item-list").html() != ""){
+				listItems()
+			}
 		},
 		error : function(jqXHR, textStatus, errorThrown) {
 			$("#form-topic-item-alert").html(errorThrown);
@@ -315,7 +358,8 @@ function popAnItem() {
 $(function() {
 	$("#accordion").accordion({
 		activate : function(event, ui) {
-			loadInformation(toInstance(ui.newHeader.text()));
+			var instance = store.getInstance(ui.newHeader.text());
+			loadInformation(instance);
 		}
 	});
 	$("#tabs").tabs();

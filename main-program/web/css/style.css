@@ -44,7 +44,7 @@ label {
 }
 table {
 	border : 1px outset;
-	width : 80%;
+	width : 100%;
 }
 table thead tr {
 	background-color: #007fff;

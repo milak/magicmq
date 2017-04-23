@@ -26,7 +26,9 @@
 				<li><a href="#tabs-4">Post item</a></li>
 			</ul>
 			<div id="tabs-1">
-				<div class="tabframe"><h3>Configuration</h3>
+				<div class="tabframe"><h3>Instance <span id="form-config-title"></span> dashboard</h3>
+				<label>Version</label> <input id="form-config-version" type='text' readonly="true"/> <label>
+				<hr/>
 				<!-- form>
 					<div class='select-radio'>
 						<label>Select Dropdown</label> <select>
@@ -68,22 +70,30 @@
 			</div>
 			<div id="tabs-3">
 				<div class="tabframe"><h3>Topic <span id="form-topic-title"></span></h3>
-					<label>Id</label> :					<input id="form-topic-item-id" type="text" readonly="true"/><br/>
-					<label>Properties</label> :<br/>
+					<label>Type</label> :					<input id="form-topic-type" type="text" readonly="true"/><br/>
+					<label>Topic properties</label> :<br/>
 					<table>
-						<thead><tr><td>Key</td><td>Age</td></tr></thead>
+						<thead><tr><th>Property</th><th>Value</th></tr></thead>
+						<tbody id="form-topic-property-list"></tbody>
+					</table>
+					<hr/>
+					<a href="#" class="button" id="form-topic-button" onclick="listItems()">List items</a>
+					<a href="#" class="button" id="form-topic-button" onclick="popAnItem()">Pop item</a>
+					<span id="form-topic-item-alert" style="color:red"></span>
+					<hr/>
+					<label>Id</label> :					<input id="form-topic-item-id" type="text" readonly="true"/><br/>
+					<label>Item properties</label> :<br/>
+					<table>
+						<thead><tr><td>Key</td><td>Value</td></tr></thead>
 						<tbody id="form-topic-item-properties"></tbody>
 					</table><br/>
 					<label>Value</label> :<br/>
 					<textarea style="width:100%;" id="form-topic-item-value" readonly="true"></textarea><br/>
 					<hr/>
-					<a href="#" class="button" id="form-topic-button" onclick="listItems()">List items</a>
-					<a href="#" class="button" id="form-topic-button" onclick="popAnItem()">Pop item</a>
-					<span id="form-topic-item-alert" style="color:red">
-					</span>
+					<label>Item list</label> :<br/>
 					<div>
 						<table>
-							<thead><tr><th>Item</th><th>Action</th></tr></thead>
+							<thead><tr><th>Item</th><th>Age</th><th>Properties</th></tr></thead>
 							<tbody id="form-topic-item-list"></tbody>
 						</table>
 					</div>
