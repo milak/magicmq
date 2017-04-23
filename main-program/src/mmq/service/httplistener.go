@@ -95,8 +95,9 @@ func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request) 
 	}
 }
 type DisplayableItem struct {
-	ID 	string
-	Age time.Duration
+	ID 			string
+	Age 		time.Duration
+	Properties 	[]item.Property
 }
 func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
@@ -132,10 +133,10 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 			}
 		} else if strings.HasSuffix(topicName, "/list") {
 			topicName = topicName[0 : len(topicName)-len("/list")]
-			items := this.store.List(topicName)
+			items,_ := this.store.List(topicName)
 			var displayableItems []DisplayableItem
 			for _,i := range items {
-				displayableItems = append(displayableItems,DisplayableItem{ID : i.ID, Age : i.GetAge()})
+				displayableItems = append(displayableItems,DisplayableItem{ID : i.ID, Age : i.GetAge(), Properties : i.Properties})
 			}
 			this.context.Logger.Println("DEBUG items list of "+topicName,displayableItems)
 			w.WriteHeader(http.StatusOK)
@@ -264,4 +265,6 @@ func (this *HttpService) Start() {
 		this.port = *port
 		go http.ListenAndServe(":"+this.port, nil)
 	}
+}
+func (this *HttpService) Stop() {
 }

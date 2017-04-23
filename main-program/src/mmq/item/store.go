@@ -96,15 +96,61 @@ func (this *ItemStore) RemoveItem(aTopicName string, aItem *Item) {
 		}
 	}
 }
-func (this *ItemStore) List(aTopicName string) []*Item {
-	result := this.itemsByTopic[aTopicName]
-	if result == nil {
-		topic := this.context.Configuration.GetTopic(aTopicName)
-		if topic != nil {
+func (this *ItemStore) List(aTopicName string) ([]*Item, error) {
+	topic := this.context.Configuration.GetTopic(aTopicName)
+	if topic == nil {
+		return nil, StoreError{"Topic not found",aTopicName,"nil"}
+	}
+	var result []*Item = nil
+	if topic.Type == conf.SIMPLE {
+		result = this.itemsByTopic[aTopicName]
+		if result == nil {
+			topic := this.context.Configuration.GetTopic(aTopicName)
+			if topic != nil {
+				result = []*Item{}
+			}
+		}
+	} else {
+		subTopics := topic.TopicList
+		strategy := topic.GetParameterByName(conf.PARAMETER_STRATEGY)
+		if strategy == "" {
+			strategy = conf.ORDERED
+		}
+		if strategy == conf.ORDERED {
 			result = []*Item{}
+			// Par défaut on est en mode ORDERED : on vide le premier topic avant de vider le second
+			for _,subTopicName := range subTopics {
+				//faut-il vérifier que le topic existe ? subTopic := this.configuration.GetTopic(subTopicName)
+				items := this.itemsByTopic[subTopicName]
+				for _,item := range items {
+					result = append(result,item)
+				}
+			}
+		} else if strategy == conf.ROUND_ROBIN {
+			result = []*Item{}
+			// TODO implémenter la stratégie ROUND-ROBIN 
+			// on alterne dans chaque sub topic
+			topics := []string{}
+			for _,subTopicName := range subTopics {
+				topics = append(topics,subTopicName)
+			}
+			for len(topics) > 0 {
+				newTopics := []string{}
+				for _,subTopicName := range topics {
+					items := this.itemsByTopic[subTopicName]
+					if len(items) == 0 {
+						continue
+					}
+					result = append(result,items[0])
+					newTopics = append(newTopics,subTopicName)
+				}
+				topics = newTopics
+			}
+		} else {
+			return nil, errors.New(strategy + " strategy not recognized")
 		}
 	}
-	return result
+	return result, nil
 }
 func (this *ItemStore) Count(aTopicName string) int {
 	return len(this.itemsByTopic[aTopicName])

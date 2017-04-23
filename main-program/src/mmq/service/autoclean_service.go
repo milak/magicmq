@@ -6,21 +6,33 @@ import (
 	"mmq/item"
 	"time"
 )
+/**
+ * AutoClean Service removes expired items according to TimeToLive parameter in Topic properties.
+ */
 type AutoCleanService struct {
 	context *env.Context
 	store   *item.ItemStore
 	running bool
 }
+/**
+ * Create a new AutoCleanService
+ */
 func NewAutoCleanService(aContext *env.Context, aStore *item.ItemStore) *AutoCleanService {
 	result := &AutoCleanService{context:aContext, store : aStore, running : false}
 	return result;
 }
+/**
+ * Start the service
+ */
 func (this *AutoCleanService) Start(){
 	if !this.running {
 		this.running = true
 		go this.run()
 	}
 }
+/**
+ * Stop the service
+ */
 func (this *AutoCleanService) Stop(){
 	this.running = false
 }
@@ -33,7 +45,8 @@ func (this *AutoCleanService) run (){
 		//this.context.Logger.Println("Cleaning")
 		for topicIndex,topic := range topics {
 			//this.context.Logger.Println("Topic ",topic.Name," ",timeToLives[topicIndex])
-			for _,item := range this.store.List(topic.Name) {
+			list,_ := this.store.List(topic.Name)
+			for _,item := range list {
 				age := item.GetAge()
 				this.context.Logger.Println("Computing for ",item," ",age)
 				if age > timeToLives[topicIndex] {
@@ -41,7 +54,6 @@ func (this *AutoCleanService) run (){
 					this.store.RemoveItem(topic.Name,item)
 				}
 			}
-			
 		}
 	}
 }

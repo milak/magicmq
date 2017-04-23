@@ -4,7 +4,7 @@ import (
 	"time"
 )
 const SIMPLE 	= "SIMPLE"
-const VIRTUAL = "VIRTUAL"
+const VIRTUAL 	= "VIRTUAL"
 
 const PARAMETER_STORE 		= "Store"
 const PARAMETER_STORE_RAM	= "RAM"
