@@ -44,6 +44,6 @@ func (this *eventBus) RemoveListener(aListener Listener) {
 }
 func (this *eventBus) FireEvent(aEvent interface{}) {
 	for _,listener := range this.listeners {
-		listener.Event(aEvent)
+		go listener.Event(aEvent)
 	}
 }
