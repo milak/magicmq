@@ -1,12 +1,13 @@
 package dist
 
 import (
-	"mmq/conf"
-	"mmq/env"
-	"log"
-	"net"
 	"bytes"
 	"encoding/json"
+	"io"
+	"log"
+	"mmq/conf"
+	"mmq/env"
+	"net"
 )
 /**
  * An internal structure used for the map. It links an instance to a connection
@@ -16,11 +17,17 @@ type instanceConnection struct {
 	connection *net.Conn      // a connection opened with the instance
 	pool		*InstancePool
 }
-func (this *instanceConnection) SendItem(aItem ManagedItem) {
+func (this *instanceConnection) SendItem(aItem SharedItem) {
 	var buffer bytes.Buffer
 	encoder := json.NewEncoder(&buffer)
 	encoder.Encode(aItem)
 	this.pool.protocol.sendCommand("ITEM", buffer.Bytes(), *this.connection)
+}
+func (this *instanceConnection) SendItemContent(aItemID string, size int) io.Writer {
+	this.pool.protocol.sendStreamedCommand("ITEM-CONTENT",len(aItemID)+1+size,*this.connection)
+	(*this.connection).Write([]byte(aItemID))
+	(*this.connection).Write([]byte{DIEZE})
+	return *this.connection
 }
 func (this *instanceConnection) Close() {
 	(*this.connection).Close()
@@ -54,6 +61,7 @@ func NewInstancePool(aContext *env.Context) *InstancePool {
  */
 func (this *InstancePool) newInstanceConnection (aInstance *conf.Instance, aConnection *net.Conn) *instanceConnection{
 	result := &instanceConnection{instance : aInstance, connection : aConnection, pool : this}
+	this.context.Logger.Println("Adding connection to ",aInstance.Name())
 	this.connections[aInstance.Name()] = result
 	return result
 }
@@ -67,19 +75,11 @@ func (this *InstancePool) GetInstanceByName(aInstanceName string) *instanceConne
 	return this.connections[aInstanceName]
 }
 func (this *InstancePool) Connect(aInstance *conf.Instance) error {
-	host := aInstance.Host + ":" + aInstance.Port
-	this.logger.Println("Trying to connect to " + host)
-	conn, err := net.Dial("tcp", host)
-	if err != nil {
-		this.logger.Println("WARNING Connection failed ", err)
-		return err
-	} else {
-		this.logger.Println("INFO Connection successful")
-		this.context.Host, _, _ = net.SplitHostPort(conn.LocalAddr().String())
-		this.protocol.sendCommand("HELLO", []byte(this.context.Host+":"+this.port), conn)
-		aInstance.Connected = true
+	conn,err := this.protocol.connect(aInstance)
+	if err == nil {
 		this.newInstanceConnection(aInstance, &conn)
-		go this.protocol.keepConnected(aInstance, &conn)
 		return nil
+	} else {
+		return err
 	}
 }

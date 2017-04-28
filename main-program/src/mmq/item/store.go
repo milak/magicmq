@@ -58,6 +58,7 @@ func (this *ItemStore) Pop(aTopicName string) (*Item, error) {
 		} else {
 			item := items[0]
 			this.itemsByTopic[aTopicName] = items[1:]
+			event.EventBus.FireEvent(&ItemRemoved{item,topic})
 			return item, nil
 		}
 	} else {
@@ -69,11 +70,15 @@ func (this *ItemStore) Pop(aTopicName string) (*Item, error) {
 		if strategy == conf.ORDERED {
 			// Par défaut on est en mode ORDERED : on vide le premier topic avant de vider le second
 			for _,subTopicName := range subTopics {
-				//faut-il vérifier que le topic existe ? subTopic := this.configuration.GetTopic(subTopicName)
+				subTopic := this.context.Configuration.GetTopic(subTopicName)
+				if subTopic == nil {
+					return nil, StoreError{"Topic not found",subTopicName,"nil"}
+				}
 				items := this.itemsByTopic[subTopicName]
 				if len(items) != 0 {
 					item := items[0]
 					this.itemsByTopic[subTopicName] = items[1:]
+					event.EventBus.FireEvent(&ItemRemoved{item,subTopic})
 					return item, nil
 				}
 			}
@@ -87,14 +92,20 @@ func (this *ItemStore) Pop(aTopicName string) (*Item, error) {
 		return nil, nil
 	}
 }
-func (this *ItemStore) RemoveItem(aTopicName string, aItem *Item) {
+func (this *ItemStore) RemoveItem(aTopicName string, aItem *Item) error {
+	topic := this.context.Configuration.GetTopic(aTopicName)
+	if topic == nil {
+		return StoreError{"Topic not found",aTopicName,aItem.ID}
+	}
 	items := this.itemsByTopic[aTopicName]
 	for i,item := range items {
 		if item.ID == aItem.ID {
+			event.EventBus.FireEvent(&ItemRemoved{item,topic})
 			this.itemsByTopic[aTopicName] = append(items[0:i],items[i+1:]...)
-			return
+			return nil
 		}
 	}
+	return StoreError{"Item not found in topic",aTopicName,aItem.ID}
 }
 func (this *ItemStore) List(aTopicName string) ([]*Item, error) {
 	topic := this.context.Configuration.GetTopic(aTopicName)

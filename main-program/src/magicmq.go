@@ -30,23 +30,20 @@ func startServices(services []service.Service){
 }
 func main() {
 	context := env.NewContext()
-	
-    flag.Parse() // Scan the arguments list 
+	flag.Parse() // Scan the arguments list 
 	fmt.Println("Starting MagicMQ on "+context.Host+"...")
     if *versionFlag {
         fmt.Println("Version:"/**, configuration.Version*/)
     }
-    
-    
     context.Configuration 	= conf.InitConfiguration(*configurationFileName)
 	pool 	:= dist.NewInstancePool(context)  
     store 	:= item.NewStore(context)
     
     services := createServices(context,store,pool)
     startServices(services)
-    
     fmt.Println("MagicMQ started")
     for context.Running {
-    	time.Sleep(100 * time.Millisecond)
+    	time.Sleep(1000 * time.Millisecond)
     }
+    fmt.Println("MagicMQ stopped")
 }

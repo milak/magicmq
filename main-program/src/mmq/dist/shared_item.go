@@ -4,10 +4,10 @@ import (
 	"mmq/item"
 )
 
-type ManagedItem struct {
+type SharedItem struct {
 	Item 		*item.Item
 	Instances	[]string
 }
-func (this *ManagedItem) AddInstance(aInstance string) {
+func (this *SharedItem) AddInstance(aInstance string) {
 	this.Instances = append(this.Instances,aInstance)
 }

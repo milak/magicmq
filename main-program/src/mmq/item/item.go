@@ -27,6 +27,7 @@ type Item struct {
 	value 			[]byte
 	ptr 			int
 	Properties 		[]Property
+	shared			bool
 }
 func NewItem (aValue []byte, aTopics []string) *Item{
 	return &Item{ID : uuid.New().String(), creationDate : time.Now(), value : aValue, Topics : aTopics, ptr : 0}
@@ -51,6 +52,15 @@ func (this *Item) GetAge() time.Duration {
 	now := time.Now()
 	return now.Sub(this.creationDate)
 }
+func (this *Item) Size() int {
+	return len(this.value)
+}
 func (this *Item) Reset() {
 	this.ptr = 0
+}
+func (this *Item) SetShared(isShared bool){
+	this.shared = isShared
+}
+func (this *Item) IsShared() bool {
+	return this.shared
 }

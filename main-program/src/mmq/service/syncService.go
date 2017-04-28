@@ -95,7 +95,7 @@ func (this *SyncService) Event(aEvent interface{}) {
  * Scan not connected Instances and try to Connect
  */
 func (this *SyncService) scanInstances() {
-	time.Sleep(4 * time.Second)
+	time.Sleep(2 * time.Second)
 	for this.running {
 		for _,instance := range this.context.Configuration.Instances {
 			if !instance.Connected {
@@ -105,7 +105,7 @@ func (this *SyncService) scanInstances() {
 				}
 			}
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 }
 

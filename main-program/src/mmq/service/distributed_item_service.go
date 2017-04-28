@@ -31,7 +31,7 @@ func (this *ItemProcessorService) Event(aEvent interface{}) {
 			if distributionPolicy == "0" || distributionPolicy == "1" || distributionPolicy == "" {
 				this.context.Logger.Println("No need to distribute : distributionPolicy == '"+distributionPolicy+"'")
 				return
-			} 
+			}
 			var nbInstances = 0
 			for _, i := range this.context.Configuration.Instances {
 				if i.Connected {
@@ -76,29 +76,38 @@ func (this *ItemProcessorService) Event(aEvent interface{}) {
 			count-- // removing myself
 			this.context.Logger.Println("Looking for :",count," instances to share with me")
 			// distribute item to other instances
-			var item dist.ManagedItem
-			item.Item = e.Item
+			e.Item.SetShared(true)
+			var sharedItem dist.SharedItem
+			sharedItem.Item = e.Item
 			for _, i := range this.context.Configuration.Instances {
 				if count <= 0 {
 					break
 				}
 				if i.Connected {
 					this.context.Logger.Println("Selected",i)
-					item.AddInstance(i.Name())
+					sharedItem.AddInstance(i.Name())
 					count--
 				}
 			}
-			for _,i := range item.Instances {
+			for _,i := range sharedItem.Instances {
 				instanceConnection := this.pool.GetInstanceByName(i)
 				if instanceConnection != nil {
 					this.context.Logger.Println("Distributing with",i)
-					instanceConnection.SendItem(item)
+					instanceConnection.SendItem(sharedItem)
+					writer := instanceConnection.SendItemContent(e.Item.ID,e.Item.Size())
+					bytes := make([]byte,2000)
+					count,_ := e.Item.Read(bytes)
+					for count != -1 {
+						writer.Write(bytes[0:count])
+						count,_ = e.Item.Read(bytes)
+					}
+				} else {
+					this.context.Logger.Println("WARNING unable to get connection to ",i)
 				}
 			}
 		}
 	}
 }
-
 func (this *ItemProcessorService) Start() {
 	event.EventBus.AddListener(this)
 }
