@@ -24,6 +24,7 @@
 				<li><a href="#tabs-2">Topics</a></li>
 				<li><a href="#tabs-3">Topic</a></li>
 				<li><a href="#tabs-4">Post item</a></li>
+				<li><a href="#tabs-5">Logs</a></li>
 			</ul>
 			<div id="tabs-1">
 				<div class="tabframe"><h3>Instance <span id="form-config-title"></span> dashboard</h3>
@@ -122,6 +123,13 @@
 				</form>
 				<a href="#" class="button" onclick="addPropertyToNewItem()">Add property</a> 
 				<a href="#" class="button" id="form-create-item-submit" disabled="true" onclick="createItem()">Create</a> <span id="form-create-item-alert" style="color:red"></span>
+				</div>
+			</div>
+			<div id="tabs-5">
+				<div class="tabframe"><h3>Logs</h3>
+					<a href="#" class="button" onclick="loadLogs()">Load logs</a>
+					<hr/>
+					<iframe style="width: 100%; height: 75%" id="instance-logs"></iframe>
 				</div>
 			</div>
 		</div>

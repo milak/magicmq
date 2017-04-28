@@ -214,12 +214,17 @@ function loadTopic(aTopicName) {
 		dataType : "jsonp"
 	})
 }
+function loadLogs(){
+	var url = "http://"+currentInstance.host+":"+currentInstance.port+"/log";
+	$('#instance-logs').prop('src',url);
+}
 function loadInformation(aInstance) {
 	$("#form-topic-title").html("");
 	$("#form-topic-button").prop('disabled', true);
 	$("#form-create-item-submit").prop('disabled', true);
 	$("#form-config-title").html(aInstance.host+":"+aInstance.port);
 	currentInstance = aInstance;
+	loadLogs();
 	$.ajax({
 		url : "http://" + aInstance.host + ":" + aInstance.port + "/info",
 		success : function(data) {
