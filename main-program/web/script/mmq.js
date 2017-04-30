@@ -157,7 +157,7 @@ function reloadInstancesInStore() {
 		var instance = instance_list[i];
 		loadInstance(instance, false);
 		if (i == 0) {
-			loadInformation(instance);
+			loadInstanceInformation(instance);
 		}
 	}
 }
@@ -186,7 +186,8 @@ function showAddInstance() {
 	dialog.dialog("open");
 }
 function loadTopic(aTopicName) {
-	$("#form-topic-button").prop('disabled', true);
+	$("#form-topic-button-pop").prop('disabled', true);
+	$("#form-topic-button-list").prop('disabled', true);
 	currentTopic = null;
 	$.ajax({
 		url : "http://" + currentInstance.host + ":" + currentInstance.port + "/topic/" + aTopicName,
@@ -194,7 +195,8 @@ function loadTopic(aTopicName) {
 			currentTopic = data.Name;
 			$("#tabs").tabs("option", "active", 2);
 			$("#form-topic-title").html(data.Name);
-			$("#form-topic-button").prop('disabled', false);
+			$("#form-topic-button-pop").prop('disabled', false);
+			$("#form-topic-button-list").prop('disabled', false);
 			$("#form-topic-type").val(data.Type);
 			$("#form-topic-item-id").html("");
 			$("#form-topic-item-properties").html("");
@@ -217,9 +219,10 @@ function loadLogs(){
 	var url = "http://"+currentInstance.host+":"+currentInstance.port+"/log";
 	$('#instance-logs').prop('src',url);
 }
-function loadInformation(aInstance) {
+function loadInstanceInformation(aInstance) {
 	$("#form-topic-title").html("");
-	$("#form-topic-button").prop('disabled', true);
+	$("#form-topic-button-pop").prop('disabled', true);
+	$("#form-topic-button-list").prop('disabled', true);
 	$("#form-create-item-submit").prop('disabled', true);
 	$("#form-config-title").html(aInstance.host+":"+aInstance.port);
 	currentInstance = aInstance;
@@ -306,6 +309,11 @@ function createItem() {
 			if (inputs[i].name == "value") {
 				continue;
 			}
+			if (inputs[i].type == "checkbox") {
+				if (!inputs[i].checked) {
+					continue;
+				}
+			}
 			if (typeof data[inputs[i].name] == "undefined") {
 				data[inputs[i].name] = new Array(inputs[i].value);
 			} else {
@@ -313,7 +321,6 @@ function createItem() {
 			}
 		}
 		data.value = $("#form-create-item-as-text").val();
-		data.topic = new Array("urgent-message","routine-message");
 		query.data = data;
 		query.traditional = true; // necessary for values list sending
 		$.ajax(query);
@@ -398,7 +405,7 @@ $(function() {
 	$("#accordion").accordion({
 		activate : function(event, ui) {
 			var instance = store.getInstance(ui.newHeader.text());
-			loadInformation(instance);
+			loadInstanceInformation(instance);
 		}
 	});
 	$("#tabs").tabs();
@@ -413,7 +420,7 @@ $(function() {
 				instance.groups = data.Groups;
 				addInstancePanel(instance, null);
 				store.addInstance(instance);
-				loadInformation(instance);
+				loadInstanceInformation(instance);
 			},
 			error : function(jqXHR, textStatus, errorThrown) {
 				addInstancePanel(instance, "Unreachable " + errorThrown);
