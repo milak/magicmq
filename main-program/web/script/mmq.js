@@ -86,7 +86,7 @@ var store = {
 	}
 };
 //
-// Display fonctions 
+// Display fonctions
 //
 
 function addInstancePanel(instance, error) {
@@ -119,16 +119,15 @@ function shutdown() {
 	$.ajax({
 		url : url,
 		success : function(data) {
-			/**var instance = new Instance(data.Host, data.Port);
-			instance.version = data.Version;
-			instance.groups = data.Groups;
-			addInstancePanel(instance, null);
-			if (addToList) {
-				store.addInstance(instance);
-			}*/
+			/**
+			 * var instance = new Instance(data.Host, data.Port);
+			 * instance.version = data.Version; instance.groups = data.Groups;
+			 * addInstancePanel(instance, null); if (addToList) {
+			 * store.addInstance(instance); }
+			 */
 		},
 		error : function(jqXHR, textStatus, errorThrown) {
-			//addInstancePanel(instance, "Unreachable " + errorThrown);
+			// addInstancePanel(instance, "Unreachable " + errorThrown);
 		},
 		dataType : "json"
 	});
@@ -263,28 +262,63 @@ function loadInformation(aInstance) {
 }
 function createItem() {
 	var url = "http://"+currentInstance.host+":"+currentInstance.port+"/item";
-	$('#form-create-item').ajaxForm({
-		url 		: url,
-		method 		: "POST",
-		success 	: function(response) {
-			$('#form-create-item-submit').prop('disabled', true);
-			$('#form-create-item-alert').prop('color', "green");
-			$('#form-create-item-alert').html("Created");
-			setTimeout(function() {
-				$('#form-create-item-alert').html("");
-				$('#form-create-item-submit').prop('disabled', false);
-			}, 1200);
-		},
-		error 		: function(jqXHR, textStatus, errorThrown) {
-			$('#form-create-item-submit').prop('disabled', true);
-			$('#form-create-item-alert').prop('color', "red");
-			$('#form-create-item-alert').html("Erreur : " + errorThrown + " " + jqXHR.responseText);
-			setTimeout(function() {
-				$('#form-create-item-alert').html("");
-				$('#form-create-item-submit').prop('disabled', false);
-			}, 4000);
+	var radios = $('input[type=radio][name=form-create-item-content-type]');
+	var mode = "text";
+	for (var i = 0; i < radios.length ; i++) {
+		if (radios[i].checked) {
+			mode = radios[i].value;
 		}
-	}).submit();
+	}
+	var query = {
+			url 		: url,
+			method 		: "POST",
+			success 	: function(response) {
+				$('#form-create-item-submit').prop('disabled', true);
+				$('#form-create-item-alert').prop('color', "green");
+				$('#form-create-item-alert').html("Created");
+				setTimeout(function() {
+					$('#form-create-item-alert').html("");
+					$('#form-create-item-submit').prop('disabled', false);
+				}, 1200);
+			},
+			error 		: function(jqXHR, textStatus, errorThrown) {
+				$('#form-create-item-submit').prop('disabled', true);
+				$('#form-create-item-alert').prop('color', "red");
+				$('#form-create-item-alert').html("Erreur : " + errorThrown + " " + jqXHR.responseText);
+				setTimeout(function() {
+					$('#form-create-item-alert').html("");
+					$('#form-create-item-submit').prop('disabled', false);
+				}, 4000);
+			}
+		};
+	var enctype;
+	if (mode == "file") {
+		var value = $("#form-create-item-as-file").val();
+		if (value == ""){
+			alert("File is missing");
+			return;
+		}
+		$('#form-create-item').ajaxForm(query).submit();
+	} else {
+		var data = new Object();
+		var inputs = $("#form-create-item * input" );
+		for (var i = 0; i < inputs.length; i++){
+			if (inputs[i].name == "value") {
+				continue;
+			}
+			if (typeof data[inputs[i].name] == "undefined") {
+				data[inputs[i].name] = new Array(inputs[i].value);
+			} else {
+				data[inputs[i].name].push(inputs[i].value);
+			}
+		}
+		data.value = $("#form-create-item-as-text").val();
+		data.topic = new Array("urgent-message","routine-message");
+		query.data = data;
+		query.traditional = true; // necessary for values list sending
+		$.ajax(query);
+	}
+	
 }
 function addPropertyToNewItem() {
 	$("#form-create-item-property-list").append("<tr><td><input name='property-name' style='width:100%' type='text'/></td><td><input name='property-value' style='width:100%' type='text'/></td><td style='text-align:center'><a href='#' class='button' onclick=\"$('#form-create-item-property-list').html('')\">X</a></td></tr>");

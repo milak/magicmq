@@ -102,9 +102,14 @@
 			</div>
 			<div id="tabs-4">
 				<div class="tabframe"><h3>Create item</h3>
-				<form id="form-create-item" method="POST">
-					<label>Value</label> :<br/> 
-					<textarea name="value" style="width: 100%"></textarea><br/>
+				<label>Text :</label> <input checked='checked'   name='form-create-item-content-type' type='radio' onclick="$('#form-create-item-as-text-div').show();$('#form-create-item-as-file-div').hide();" value='text'/>
+				<label>File : </label> <input name='form-create-item-content-type' type='radio' value='file' onclick="$('#form-create-item-as-text-div').hide();$('#form-create-item-as-file-div').show();"/>
+				<br/>
+				<label>Value</label> :<br/>
+				<div id="form-create-item-as-text-div"><textarea id="form-create-item-as-text" name="value" style="width: 100%"></textarea></div>
+				<form id="form-create-item" method="POST" enctype="multipart/form-data">
+					<div id="form-create-item-as-file-div" style="display:none"><input id="form-create-item-as-file" type="file" name="value" /></div>
+					<br/>
 					<label>Topics</label> :
 					<table>
 						<thead><tr><td style="width:10%">Select</td><td>Name</td></tr></thead>
