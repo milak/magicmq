@@ -13,15 +13,23 @@ import (
 	"strconv"
 	"time"
 )
+// Structure used for exchange of instance information during HELLO part
+type currentInstanceInformation struct {
+	Host	string
+	Port	string
+	Version string
+	Groups	[]string
+}
 type protocol struct {
-	context	*env.Context
-	logger	*log.Logger
-	port 	string
+	context				*env.Context
+	logger				*log.Logger
+	port 				string
+	connectionFactory 	connectionFactory
 }
 // A const for DIEZE value
 const DIEZE byte = byte('#')
-func NewProtocol(aContext *env.Context) *protocol {
-	result := &protocol{context : aContext, logger : aContext.Logger}
+func NewProtocol(aContext *env.Context, aConnectionFactory connectionFactory) *protocol {
+	result := &protocol{context : aContext, logger : aContext.Logger, connectionFactory : aConnectionFactory}
 	for _,service := range aContext.Configuration.Services {
 		if service.Name == conf.SERVICE_SYNC {
 			for _,parameter := range service.Parameters {
@@ -93,16 +101,16 @@ func (this *protocol) sendStreamedCommand(command string, size int, connection n
 }
 func (this *protocol) connect(aInstance *conf.Instance) (net.Conn,error){
 	host := aInstance.Host + ":" + aInstance.Port
-	this.logger.Println("Trying to connect to " + host)
+	//this.logger.Println("Trying to connect to " + host)
 	conn, err := net.Dial("tcp", host)
 	if err != nil {
-		this.logger.Println("WARNING Connection failed ", err)
 		return nil,err
 	} else {
-		this.logger.Println("INFO Connection successful")
-		this.sendCommand("HELLO", []byte(this.context.Host+":"+this.port), conn)
+		//this.logger.Println("INFO Connection successful")
+		this.sendCommand("HELLO", this._prepareInfo(), conn)
 		aInstance.Connected = true
-		go this._keepConnected(aInstance, &conn)
+		connection := this.connectionFactory.Build(aInstance,&conn)
+		go this._keepConnected(aInstance, &conn, connection)
 		return conn,nil
 	}
 }
@@ -110,7 +118,7 @@ func (this *protocol) connect(aInstance *conf.Instance) (net.Conn,error){
  * Method used by both side : caller and called
  * all the commands will be received through this link
  */
-func (this *protocol) _keepConnected(aInstance *conf.Instance, aConnection *net.Conn){
+func (this *protocol) _keepConnected(aInstance *conf.Instance, aConnection *net.Conn, aCloser io.Closer){
 	var byteBuffer *bytes.Buffer
 	buffer := make([]byte,2000)
 	connection := (*aConnection)
@@ -122,7 +130,8 @@ func (this *protocol) _keepConnected(aInstance *conf.Instance, aConnection *net.
 	var needMore int
 	// while the service is running
 	for this.context.Running {
-		time.Sleep(1 * time.Second)
+		time.Sleep(500 * time.Millisecond)
+		//this.logger.Println("DEBUG after sleep")
 		// reintroduce remain from previous command
 		if len(remain) > 0 {
 			//this.logger.Println("Reusing remain",remain)
@@ -131,14 +140,19 @@ func (this *protocol) _keepConnected(aInstance *conf.Instance, aConnection *net.
 			//this.logger.Println("Listening to remote")
 			count,err := connection.Read(buffer)
 			if err != nil {
+				if aCloser != nil {
+					aCloser.Close()
+				}
 				this.logger.Println("INFO Lost connection with",aInstance.Name(),err)
 				event.EventBus.FireEvent(&InstanceDisconnected{Instance : aInstance})
 				break
 			}
 			buffer = buffer[0:count]
 		}
+		//this.logger.Println("DEBUG after Read",buffer,string(buffer))
 		// Parse data received
 		command, arguments, remain, needMore = this._splitCommand(buffer)
+		//this.logger.Println("DEBUG after split",command,string(arguments),remain,needMore)
 		if needMore != 0 {
 			//this.logger.Println("Unfinished",arguments,", need",needMore,"bytes")
 			var bufferNeeded bytes.Buffer // Todo in the future use a swap in disk for ITEM command
@@ -146,10 +160,17 @@ func (this *protocol) _keepConnected(aInstance *conf.Instance, aConnection *net.
 			arguments = append(arguments,bufferNeeded.Bytes()...)
 			//this.logger.Println("Finally got",string(arguments))
 		}
+		//this.logger.Println("DEBUG after Parse",command,string(arguments))
 		// Process the command
-		this.logger.Println("DEBUG Received command " + command,remain)
+		//this.logger.Println("DEBUG Received command " + command,remain)
 		// Received HELLO from called
 		if command == "HELLO" { // On est côté appelant, on reçoit la réponse de l'appelé, on lui envoie la configuration
+			buffer := bytes.NewBuffer(arguments)
+			decoder := json.NewDecoder(buffer)
+			var info currentInstanceInformation
+			decoder.Decode(&info)
+			this.logger.Println("DEBUG HELLO received",info)
+			aInstance.Groups = info.Groups
 			this._sendConfiguration(&connection)
 		} else if command == "INSTANCES" { // Receive instance list
 			var newInstances []*conf.Instance
@@ -157,7 +178,8 @@ func (this *protocol) _keepConnected(aInstance *conf.Instance, aConnection *net.
 			decoder := json.NewDecoder(byteBuffer)
 			decoder.Decode(&newInstances)
 			for _,newInstance := range newInstances {
-				this.logger.Println("DEBUG Received instance :",newInstance)
+				//this.logger.Println("DEBUG Received instance :",newInstance)
+				newInstance.Connected = false // ensure the Instance will not be considered as connected
 				event.EventBus.FireEvent(&InstanceReceived{Instance : newInstance, From : aInstance})
 			}
 		} else if command == "TOPICS" { // Receive topic list
@@ -174,11 +196,20 @@ func (this *protocol) _keepConnected(aInstance *conf.Instance, aConnection *net.
 			byteBuffer = bytes.NewBuffer(arguments)
 			decoder := json.NewDecoder(byteBuffer)
 			decoder.Decode(&item)
-			this.logger.Println("DEBUG Received item :",item)
+			//this.logger.Println("DEBUG Received item :",item)
 			event.EventBus.FireEvent(&ItemReceived{Item : item, From : aInstance})
 		} else if command == "ITEM-CONTENT" { // Receive item
-			this.logger.Println("DEBUG Received item content :",arguments)
-			//TODO : event.EventBus.FireEvent(&ItemContentReceived{ID : "123456",Content : []bytes("Hello !!!"), From : aInstance})
+			this.logger.Println("DEBUG Received item content :",string(arguments))
+			var i = 0
+			for arguments[i] != DIEZE {
+				i++
+			}
+			id := string(arguments[0:i])
+			content := arguments[i+1:]
+			this.logger.Println("DEBUG Received item content : id = ",id," content = ",string(content))
+			event.EventBus.FireEvent(&ItemContentReceived{ID : id, Content : content, From : aInstance})
+		} else if command == "ITEM-REMOVE" { // Remove item
+			event.EventBus.FireEvent(&ItemRemoved{ID : string(arguments), From : aInstance})
 		} else if command == "ERROR" {
 			this.logger.Println("WARNING Received ERROR :",arguments)
 		} else {
@@ -247,35 +278,50 @@ func (this *protocol) handleConnection (aConn net.Conn) (*conf.Instance, error) 
 		this.sendCommand("ERROR",[]byte("Unable to understand"),aConn)
 		return nil,errors.New("Unable to understand " + command)
 	}
-	host,port,_ := net.SplitHostPort(string(arguments))
-	instance := conf.NewInstance(host,port)
+	infoBuffer := bytes.NewBuffer(arguments)
+	var info currentInstanceInformation
+	decoder := json.NewDecoder(infoBuffer)
+	decoder.Decode(&info)
+	instance := conf.NewInstance(info.Host,info.Port)
+	instance.Groups = info.Groups
+	instance.Connected = true
 	//this.logger.Println("Adding caller as new instance",instance)
 	event.EventBus.FireEvent(&InstanceReceived{Instance : instance, From : nil})
-	instance.Connected = true
 	for len(remain) > 0 {
 		command, arguments, remain, needMore = this._splitCommand(remain)
 		this.logger.Println("DEBUG Received command " + command,arguments,remain,needMore)
 	}
-	this.sendCommand("HELLO",[]byte(this.context.Host+":"+this.port),aConn) // TODO échanger leur numéros de version
+	this.sendCommand("HELLO",this._prepareInfo(),aConn) // TODO échanger leur numéros de version
 	this._sendConfiguration(&aConn)
-	go this._keepConnected(instance,&aConn)
+	connection := this.connectionFactory.Build(instance,&aConn)
+	go this._keepConnected(instance,&aConn,connection)
 	return instance, nil
 	// TODO : gerer le fait que les deux peuvent essayer de se connecter en même temps, il y aura alors deux connections entre eux
+}
+func (this *protocol) _prepareInfo() []byte {
+	info := currentInstanceInformation{Host : this.context.Host, Port : this.port, Version : this.context.Configuration.Version, Groups : this.context.Configuration.Groups}
+	var buffer bytes.Buffer
+	encoder := json.NewEncoder(&buffer)
+	encoder.Encode(info)
+	return buffer.Bytes()
 }
 /**
  * Reads from connection until missing data is received (linked to NeedMore detection in splitCommand)
  */
 func (this *protocol) _takeMore(connection net.Conn, needMore int, writer io.Writer) (remain []byte){
+	//this.logger.Println("DEBUG taking more",needMore)
 	buffer := make([]byte,2000)
 	var total = 0
 	for total < needMore {
 		count,err := connection.Read(buffer)
+		//this.logger.Println("DEBUG took more",count," : ",total)
 		if err != nil {
 			this.logger.Println("WARNING Failed to read following needed bytes")
 			return
 		}
 		if count + total > needMore {
 			part := needMore - total
+			total += part 
 			writer.Write(buffer[0:part])
 			remain = buffer[part:count]
 		} else {
@@ -284,5 +330,6 @@ func (this *protocol) _takeMore(connection net.Conn, needMore int, writer io.Wri
 			remain = []byte{}
 		}
 	}
+	//this.logger.Println("DEBUG got all",total)
 	return remain
 }

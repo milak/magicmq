@@ -6,26 +6,44 @@ import (
 	"github.com/milak/event"
 	"fmt"
 	"errors"
+	"bytes"
+	"io"
 )
 
 type ItemStore struct {
-	itemsByTopic map[string][]*Item
-	context *env.Context
+	itemsByTopic 	map[string][]*Item
+	contentsByItem 	map[string]*ItemContent
+	context 		*env.Context
 }
-
+type ItemContent struct {
+	bytes 		[]byte
+	linkNumber	int // the number of link with this content
+}
 type StoreError struct {
-	Message string
-	Topic 	string
-	Item 	string
+	Message 	string
+	Topic 		string
+	Item 		string
 }
 func (this StoreError) Error() string {
 	return fmt.Sprintf("%s : topic = %s item = %s", this.Message, this.Topic, this.Item)
 }
 func NewStore(aContext *env.Context) *ItemStore{
-	result := &ItemStore{itemsByTopic : make(map[string][]*Item), context : aContext}
+	result := &ItemStore{itemsByTopic : make(map[string][]*Item), contentsByItem : make(map[string]*ItemContent), context : aContext}
 	return result
 }
-func (this *ItemStore) Push (aItem *Item) error {
+func (this *ItemStore) Push (aItem *Item, aContent io.Reader) error {
+	var buffer bytes.Buffer
+	bytes := make([]byte,2000)
+	count, _ := aContent.Read(bytes)
+	for count > 0 {
+		buffer.Write(bytes[0:count])
+		count, _ = aContent.Read(bytes)
+	}
+	closer,isCloser := aContent.(io.Closer)
+	if isCloser {
+		closer.Close()
+	}
+	this.contentsByItem[aItem.ID] = &ItemContent{bytes : buffer.Bytes(), linkNumber : len(aItem.Topics)}
 	// Pour chaque topic pour lequel il est enregistré
 	for _,topicName := range aItem.Topics {
 		topic := this.context.Configuration.GetTopic(topicName)
@@ -46,20 +64,28 @@ func (this *ItemStore) Push (aItem *Item) error {
 	}
 	return nil
 }
-func (this *ItemStore) Pop(aTopicName string) (*Item, error) {
+func (this *ItemStore) GetContent(aItemID string, purge bool) io.Reader {
+	theBytes := this.contentsByItem[aItemID].bytes
+	result := bytes.NewBuffer(theBytes)
+	if purge {
+		this.RemoveContent(aItemID)
+	}
+	return result
+}
+func (this *ItemStore) Pop(aTopicName string) (*Item, io.Reader, error) {
 	topic := this.context.Configuration.GetTopic(aTopicName)
 	if topic == nil {
-		return nil, StoreError{"Topic not found",aTopicName,"nil"}
+		return nil, nil, StoreError{"Topic not found",aTopicName,"nil"}
 	}
 	if topic.Type == conf.SIMPLE {
 		items := this.itemsByTopic[aTopicName]
 		if len(items) == 0 {
-			return nil, nil
+			return nil, nil, nil
 		} else {
 			item := items[0]
 			this.itemsByTopic[aTopicName] = items[1:]
 			event.EventBus.FireEvent(&ItemRemoved{item,topic})
-			return item, nil
+			return item, this.GetContent(item.ID,true), nil
 		}
 	} else {
 		subTopics := topic.TopicList
@@ -72,24 +98,30 @@ func (this *ItemStore) Pop(aTopicName string) (*Item, error) {
 			for _,subTopicName := range subTopics {
 				subTopic := this.context.Configuration.GetTopic(subTopicName)
 				if subTopic == nil {
-					return nil, StoreError{"Topic not found",subTopicName,"nil"}
+					return nil, nil, StoreError{"Topic not found",subTopicName,"nil"}
 				}
 				items := this.itemsByTopic[subTopicName]
 				if len(items) != 0 {
 					item := items[0]
 					this.itemsByTopic[subTopicName] = items[1:]
 					event.EventBus.FireEvent(&ItemRemoved{item,subTopic})
-					return item, nil
+					return item, this.GetContent(item.ID,true), nil
 				}
 			}
 		} else if strategy == conf.ROUND_ROBIN {
 			// TODO implémenter la stratégie ROUND-ROBIN 
 			// Pour implémenter ROUND-ROBIN, il va falloir conserver un indicateur pour savoir la file que l'on a lu le coup précédent
-			return nil, errors.New("ROUND ROBIN strategy not yet implemented")
+			return nil, nil, errors.New("ROUND ROBIN strategy not yet implemented")
 		} else {
-			return nil, errors.New(strategy + " strategy not recognized")
+			return nil, nil, errors.New(strategy + " strategy not recognized")
 		}
-		return nil, nil
+		return nil, nil, nil
+	}
+}
+func (this *ItemStore) RemoveContent(aItemID string){
+	this.contentsByItem[aItemID].linkNumber--
+	if this.contentsByItem[aItemID].linkNumber < 0 {
+		delete(this.contentsByItem,aItemID)
 	}
 }
 func (this *ItemStore) RemoveItem(aTopicName string, aItem *Item) error {
@@ -105,6 +137,8 @@ func (this *ItemStore) RemoveItem(aTopicName string, aItem *Item) error {
 			return nil
 		}
 	}
+	// TOD determine if i have to remove item (cause can be in other topics
+	this.RemoveContent(aItem.ID)
 	return StoreError{"Item not found in topic",aTopicName,aItem.ID}
 }
 func (this *ItemStore) List(aTopicName string) ([]*Item, error) {

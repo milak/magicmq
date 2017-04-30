@@ -10,17 +10,33 @@ type Context struct {
 	Running			bool
 	Configuration 	*conf.Configuration
 	Logger			*log.Logger
-	Host			string // will be obtained once connected, not sure it is operationnal
+	Host			string
+	InstanceName	string
 }
-func NewContext() *Context {
+func NewContext(conf *conf.Configuration) *Context {
 	var logger *log.Logger
 	file, err := os.Create("mmq.log")
 	if err != nil {
-		logger = log.New(os.Stdout, "-", log.Lshortfile)
+		logger = log.New(os.Stdout, "",  log.Ldate | log.Ltime | log.Lshortfile)
 		logger.Println("Unable to open file mmq.log")
 	} else {
-		logger = log.New(file, "-", log.Lshortfile)
+		logger = log.New(file, "",  log.Ldate | log.Ltime | log.Lshortfile)
 	}
 	host,_ := network.GetLocalIP()
-	return &Context{Running : true, Logger : logger, Host : host}
+	InstanceName := host
+	for _,service := range conf.Services {
+		if !service.Active {
+			continue
+		}
+		if service.Name == "SYNC" {
+			for _,p := range service.Parameters {
+				if p.Name == "port" {
+					InstanceName = host+":"+p.Value
+					break;
+				}
+			}
+			break
+		}
+	}
+	return &Context{Running : true, Configuration : conf, Logger : logger, Host : host, InstanceName : InstanceName}
 }

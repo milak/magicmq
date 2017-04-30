@@ -21,3 +21,12 @@ type ItemReceived struct {
 	Item 		*SharedItem
 	From		*conf.Instance
 }
+type ItemContentReceived struct {
+	ID 			string
+	Content		[]byte // TODO use a Reader instead
+	From		*conf.Instance
+}
+type ItemRemoved struct {
+	ID 			string
+	From		*conf.Instance
+}

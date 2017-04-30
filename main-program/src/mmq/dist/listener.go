@@ -15,7 +15,7 @@ type Listener struct {
 	protocol	*protocol
 }
 func NewListener(aContext *env.Context, aPool *InstancePool) *Listener {
-	return &Listener{context : aContext, pool : aPool, running : true, protocol : NewProtocol(aContext), logger : aContext.Logger}
+	return &Listener{context : aContext, pool : aPool, running : true, protocol : NewProtocol(aContext,aPool), logger : aContext.Logger}
 }
 func (this *Listener) Start(){
 	for s := range this.context.Configuration.Services {
@@ -58,10 +58,10 @@ func (this *Listener) doListen (aPort string) {
 				this.logger.Println("WARNING Failed to listen",err)
 			} else {
 				this.logger.Println("INFO caught a call")
-				instance,err := this.protocol.handleConnection(conn)
-				if err != nil {
+				/*instance,err := */this.protocol.handleConnection(conn)
+				/*if err == nil {
 					this.pool.newInstanceConnection(instance,&conn)
-				}
+				}*/
 			}
 		}
 	}

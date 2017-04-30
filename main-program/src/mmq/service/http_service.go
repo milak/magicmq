@@ -1,8 +1,10 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/milak/event"
+	"io"
 	"mmq/conf"
 	"mmq/env"
 	"mmq/item"
@@ -64,33 +66,64 @@ func (this *HttpService) topicListListener(w http.ResponseWriter, req *http.Requ
 	}
 }
 func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request) {
+	this.context.Logger.Println("DEBUG entering item REST API",req);
+	w.Header().Add("Access-Control-Allow-Origin", "*")
 	if req.Method == http.MethodPut || req.Method == http.MethodPost {
-		req.ParseForm()
-		if len(req.Form["topic"]) == 0 || len(req.Form["value"]) == 0 {
+		//req.ParseForm()
+		multipart := true
+		erro := req.ParseMultipartForm(http.DefaultMaxHeaderBytes)
+		if erro != nil {
+			multipart = false
+		}
+		// Processing topic
+		if len(req.Form["topic"]) == 0 {
 			w.WriteHeader(http.StatusNotAcceptable)
-		} else {
-			topics := []string{}
-			for _, topicName := range req.Form["topic"] {
-				topics = append(topics, topicName)
+			if len(req.Form["topic"]) == 0 {
+				w.Write([]byte("Missing topic argument"))
 			}
-			value := req.Form["value"][0]
-			item := item.NewItem([]byte(value), topics)
-			for i, key := range req.Form["property-name"] {
-				value := req.Form["property-value"][i]
-				item.AddProperty(key, value)
-			}
-			this.context.Logger.Println("Adding item");
-			err := this.store.Push(item)
+			return
+		}
+		topics := []string{}
+		for _, topicName := range req.Form["topic"] {
+			topics = append(topics, topicName)
+		}
+		// Processing value
+		var content io.Reader
+		if multipart {
+			file,_,err := req.FormFile("value")
+			content = file
 			if err != nil {
-				this.context.Logger.Println("Failed to add",err);
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(err.Error()))
-			} else {
-				this.context.Logger.Println("Item added");
-				w.WriteHeader(http.StatusCreated)
+				return
 			}
+			defer file.Close()
+			
+		} else {
+			if len(req.Form["value"]) == 0 {
+				w.WriteHeader(http.StatusNotAcceptable)
+				w.Write([]byte("Missing value argument"))
+				return
+			}
+			content = bytes.NewBuffer([]byte(req.Form["value"][0]))
+		}
+		item := item.NewItem(topics)
+		for i, key := range req.Form["property-name"] {
+			value := req.Form["property-value"][i]
+			item.AddProperty(key, value)
+		}
+		this.context.Logger.Println("Adding item");
+		err := this.store.Push(item,content)
+		if err != nil {
+			this.context.Logger.Println("Failed to add",err);
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+		} else {
+			this.context.Logger.Println("Item added");
+			w.WriteHeader(http.StatusCreated)
 		}
 	} else {
+		this.context.Logger.Println("WARNING Method not supported ",req.Method);
 		this.methodNotSupported(w, req.Method)
 	}
 }
@@ -106,7 +139,7 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 	if req.Method == http.MethodGet {
 		if strings.HasSuffix(topicName, "/pop") {
 			topicName = topicName[0 : len(topicName)-len("/pop")]
-			item, err := this.store.Pop(topicName)
+			item, reader, err := this.store.Pop(topicName)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(err.Error()))
@@ -124,11 +157,19 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 				}
 				properties += "]"
 				w.Header().Add("properties", properties)
-				count, err := item.Read(buffer)
-				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
+				item.Reset()
+				if reader != nil {
+					count, err := reader.Read(buffer)
+					// TODO support BIG FILE
+					if err != nil {
+						w.WriteHeader(http.StatusInternalServerError)
+						w.Write([]byte(err.Error()))
+					} else {
+						w.WriteHeader(http.StatusOK)
+						w.Write(buffer[0:count])
+					}
 				} else {
-					w.Write(buffer[0:count])
+					w.WriteHeader(http.StatusNoContent)
 				}
 			}
 		} else if strings.HasSuffix(topicName, "/list") {

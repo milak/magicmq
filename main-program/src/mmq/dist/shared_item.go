@@ -6,6 +6,7 @@ import (
 
 type SharedItem struct {
 	Item 		*item.Item
+	Topic		string
 	Instances	[]string
 }
 func (this *SharedItem) AddInstance(aInstance string) {

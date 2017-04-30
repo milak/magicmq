@@ -6,7 +6,7 @@ import (
 	"mmq/env"
 	"mmq/dist"
 	"github.com/milak/event"
-	"reflect"
+//	"reflect"
 	"time"
 )
 /**
@@ -50,9 +50,8 @@ func (this *SyncService) Start (){
 		}
 	}
 }
-// Catch event InstanceRemoved
+// Catch events
 func (this *SyncService) Event(aEvent interface{}) {
-	this.logger.Println("Event received")
 	switch e:= aEvent.(type) {
 		case *conf.InstanceRemoved :
 			instanceConnection := this.pool.GetInstanceByName(e.Instance.Name())
@@ -60,7 +59,6 @@ func (this *SyncService) Event(aEvent interface{}) {
 				instanceConnection.Close()
 			}
 		case *dist.TopicReceived :
-			this.logger.Println("TopicReceived")
 			this.logger.Println("Received topic : " + e.Topic.Name)
 			existingTopic := this.context.Configuration.GetTopic(e.Topic.Name)
 			if existingTopic != nil {
@@ -69,42 +67,47 @@ func (this *SyncService) Event(aEvent interface{}) {
 				this.context.Configuration.AddTopic(e.Topic)
 			}
 		case *dist.InstanceReceived :
-			this.logger.Println("InstanceReceived")
 			if (e.Instance.Host == this.context.Host) && (e.Instance.Port == this.port) {
-				this.logger.Println("Skipped instance cause it is me :)")
+				//this.logger.Println("Skipped instance cause it is me :)")
 			} else {
-				e.Instance.Connected = false // ensure the Instance will not be considered as connected
 				if this.context.Configuration.AddInstance(e.Instance) {
 					this.logger.Println("Added instance :",e.Instance)
 				}
 			}
 		case *dist.InstanceDisconnected :
-			this.logger.Println("InstanceDisconnected")
-			instanceConnection := this.pool.GetInstanceByName(e.Instance.Name())
-			if instanceConnection != nil {
-				instanceConnection.Close()
-			}
-		case *dist.ItemReceived :
-			this.logger.Println("ItemReceived item :",e.Item," from :",e.From)
-			
+			this.logger.Println("WARNING InstanceDisconnected",e.Instance.Name())
 		default:
-			this.logger.Println("Unknown",reflect.TypeOf(aEvent))
+			//this.logger.Println("Unknown",reflect.TypeOf(aEvent))
 	}
 }
 /**
  * Scan not connected Instances and try to Connect
  */
 func (this *SyncService) scanInstances() {
+	const SAY_IT = 0
+	const WAIT_FOR = 100
+	timeBeforeSaying := SAY_IT
 	time.Sleep(2 * time.Second)
 	for this.running {
 		for _,instance := range this.context.Configuration.Instances {
 			if !instance.Connected {
+				if timeBeforeSaying == SAY_IT {
+					this.logger.Println("INFO trying to connect to ",instance.Name())
+				}
 				err := this.pool.Connect(instance)
 				if err != nil {
-					this.logger.Println("Error while connection to ",instance.Name(),err.Error())
+					if timeBeforeSaying == SAY_IT {
+						this.logger.Println("WARNING Error while connecting to ",instance.Name(),err.Error())
+					}
+				} else {
+					this.logger.Println("INFO Connected to ",instance.Name())
 				}
 			}
 		}
+		if timeBeforeSaying == SAY_IT {
+			timeBeforeSaying = WAIT_FOR
+		}
+		timeBeforeSaying--
 		time.Sleep(2 * time.Second)
 	}
 }

@@ -29,8 +29,8 @@ type Item struct {
 	Properties 		[]Property
 	shared			bool
 }
-func NewItem (aValue []byte, aTopics []string) *Item{
-	return &Item{ID : uuid.New().String(), creationDate : time.Now(), value : aValue, Topics : aTopics, ptr : 0}
+func NewItem (aTopics []string) *Item{
+	return &Item{ID : uuid.New().String(), creationDate : time.Now(), Topics : aTopics, ptr : 0}
 }
 func (this *Item) AddProperty(aName,aValue string) *Property {
 	result := Property{Name : aName, Value : aValue}
