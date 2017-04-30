@@ -78,8 +78,8 @@
 						<tbody id="form-topic-property-list"></tbody>
 					</table>
 					<hr/>
-					<a href="#" class="button" id="form-topic-button" onclick="listItems()">List items</a>
-					<a href="#" class="button" id="form-topic-button" onclick="popAnItem()">Pop item</a>
+					<a href="#" class="button" id="form-topic-button-list" onclick="listItems()">List items</a>
+					<a href="#" class="button" id="form-topic-button-pop" onclick="popAnItem()">Pop item</a>
 					<span id="form-topic-item-alert" style="color:red"></span>
 					<hr/>
 					<label>Id</label> :					<input id="form-topic-item-id" type="text" readonly="true"/><br/>
@@ -102,13 +102,17 @@
 			</div>
 			<div id="tabs-4">
 				<div class="tabframe"><h3>Create item</h3>
-				<label>Text :</label> <input checked='checked'   name='form-create-item-content-type' type='radio' onclick="$('#form-create-item-as-text-div').show();$('#form-create-item-as-file-div').hide();" value='text'/>
-				<label>File : </label> <input name='form-create-item-content-type' type='radio' value='file' onclick="$('#form-create-item-as-text-div').hide();$('#form-create-item-as-file-div').show();"/>
+				<label>Value</label> : 
+				
+				<input name='form-create-item-content-type' type='radio' value='text' onclick="$('#form-create-item-as-text-div').show();$('#form-create-item-as-file-div').hide();"  checked='checked'/>text
+				<input name='form-create-item-content-type' type='radio' value='file' onclick="$('#form-create-item-as-text-div').hide();$('#form-create-item-as-file-div').show();"/>file
 				<br/>
-				<label>Value</label> :<br/>
-				<div id="form-create-item-as-text-div"><textarea id="form-create-item-as-text" name="value" style="width: 100%"></textarea></div>
+				
+				<div id="form-create-item-as-text-div"><textarea id="form-create-item-as-text" style="width: 100%"></textarea></div>
 				<form id="form-create-item" method="POST" enctype="multipart/form-data">
-					<div id="form-create-item-as-file-div" style="display:none"><input id="form-create-item-as-file" type="file" name="value" /></div>
+					<div id="form-create-item-as-file-div" style="display:none;padding:4px;border-style: solid;border-width:1px; border-color: black">
+						<input id="form-create-item-as-file" style="color:#2196F3!important;" type="file" name="value" />
+					</div>
 					<br/>
 					<label>Topics</label> :
 					<table>

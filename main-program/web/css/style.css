@@ -2,6 +2,10 @@
  */
 body {
 }
+textarea {
+	border-radius:8px!important;
+	border-width: 1px;
+}
 .button {
 	color:#fff!important;
 	opacity:0.9;
