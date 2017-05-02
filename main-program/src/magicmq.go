@@ -16,7 +16,7 @@ var versionFlag *bool = flag.Bool("v", false, "Print the version number.")
 var configurationFileName *string = flag.String("f", "configuration.json", "The configuration file name")
 func createServices(context *env.Context, store *item.ItemStore, pool *dist.InstancePool) []service.Service {
 	result := []service.Service{}
-	result = append(result,service.NewItemProcessorService(context,pool,store))
+	result = append(result,service.NewDistributedItemService(context,pool,store))
 	result = append(result,service.NewHttpService(context,store))
 	result = append(result,service.NewSyncService(context,pool))
 	result = append(result,dist.NewListener(context,pool))

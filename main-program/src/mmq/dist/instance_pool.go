@@ -17,7 +17,7 @@ type instanceConnection struct {
 	connection *net.Conn      // a connection opened with the instance
 	pool		*InstancePool
 }
-func (this *instanceConnection) SendItem(aItem SharedItem) {
+func (this *instanceConnection) SendItem(aItem *SharedItem) {
 	var buffer bytes.Buffer
 	encoder := json.NewEncoder(&buffer)
 	encoder.Encode(aItem)

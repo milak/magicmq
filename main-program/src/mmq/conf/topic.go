@@ -19,7 +19,7 @@ const PARAMETER_DISTRIBUTION_STRATEGY_AT_MOST_ONCE = "AT_MOST_ONCE"
  * Stratégies de répartition des topics pour les topics virtuels
  */
 const PARAMETER_STRATEGY 	= "Strategy"
-const ROUND_ROBIN 			= "ROUND ROBIN"
+const ROUND_ROBIN 			= "ROUND_ROBIN"
 const ORDERED 				= "ORDERED"
 
 const PARAMETER_DISTRIBUTED = "Distributed"
@@ -27,6 +27,8 @@ const DISTRIBUTED_NO 		= "NO"
 const DISTRIBUTED_ALL 		= "ALL"
 
 const PARAMETER_DISTRIBUTED_GROUPS = "DistributedGroups"
+
+const PARAMETER_MAX_ITEM_COUNT = "MaxItemCount"
 
 const PARAMETER_TIME_TO_LIVE = "TimeToLive"
 

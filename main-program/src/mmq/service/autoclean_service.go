@@ -45,8 +45,9 @@ func (this *AutoCleanService) run (){
 		//this.context.Logger.Println("Cleaning")
 		for topicIndex,topic := range topics {
 			//this.context.Logger.Println("Topic ",topic.Name," ",timeToLives[topicIndex])
-			list,_ := this.store.List(topic.Name)
-			for _,item := range list {
+			iterator,_ := this.store.List(topic.Name)
+			for iterator.HasNext() {
+				item := iterator.Next().(*item.Item)
 				age := item.GetAge()
 				this.context.Logger.Println("Computing for ",item," ",age)
 				if age > timeToLives[topicIndex] {
