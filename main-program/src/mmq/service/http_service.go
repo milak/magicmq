@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 )
-
 type HttpService struct {
 	context *env.Context
 	port    string
@@ -25,7 +24,7 @@ func NewHttpService(aContext *env.Context, aStore *item.ItemStore) *HttpService 
 }
 func (this *HttpService) notFound(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNotFound)
-	w.Write([]byte("Sorry " + string(http.StatusNotFound) + " error : not found"))
+	w.Write([]byte("Sorry the page you requested is not found"))
 }
 func (this *HttpService) methodNotSupported(w http.ResponseWriter, aMethod string) {
 	w.WriteHeader(http.StatusMethodNotAllowed)
@@ -66,7 +65,7 @@ func (this *HttpService) topicListListener(w http.ResponseWriter, req *http.Requ
 	}
 }
 func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request) {
-	this.context.Logger.Println("DEBUG entering item REST API",req);
+	this.context.Logger.Println("DEBUG entering item REST API", req)
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	if req.Method == http.MethodPut || req.Method == http.MethodPost {
 		//req.ParseForm()
@@ -90,7 +89,7 @@ func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request) 
 		// Processing value
 		var content io.Reader
 		if multipart {
-			file,_,err := req.FormFile("value")
+			file, _, err := req.FormFile("value")
 			content = file
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
@@ -98,7 +97,7 @@ func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request) 
 				return
 			}
 			defer file.Close()
-			
+
 		} else {
 			if len(req.Form["value"]) == 0 {
 				w.WriteHeader(http.StatusNotAcceptable)
@@ -112,25 +111,70 @@ func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request) 
 			value := req.Form["property-value"][i]
 			item.AddProperty(key, value)
 		}
-		this.context.Logger.Println("Adding item");
-		err := this.store.Push(item,content)
+		this.context.Logger.Println("Adding item")
+		err := this.store.Push(item, content)
 		if err != nil {
-			this.context.Logger.Println("Failed to add",err);
+			this.context.Logger.Println("Failed to add", err)
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(err.Error()))
 		} else {
-			this.context.Logger.Println("Item added");
+			this.context.Logger.Println("Item added")
 			w.WriteHeader(http.StatusCreated)
 		}
+	} else if req.Method == http.MethodGet {
+		id := req.URL.Path
+		id = id[len("/item/"):]
+		this.context.Logger.Println("DEBUG getting content of item ", id)
+		item := this.store.GetItem(id)
+		if item == nil {
+			this.notFound(w)
+		} else {
+			reader, err := this.store.GetContent(id, false)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+			} else {
+				this.writeItem(w, item, reader)
+			}
+		}
 	} else {
-		this.context.Logger.Println("WARNING Method not supported ",req.Method);
+		this.context.Logger.Println("WARNING Method not supported ", req.Method)
 		this.methodNotSupported(w, req.Method)
 	}
 }
+
 type DisplayableItem struct {
-	ID 			string
-	Age 		time.Duration
-	Properties 	[]item.Property
+	ID         string
+	Age        time.Duration
+	Properties []item.Property
+}
+
+func (this *HttpService) writeItem(w http.ResponseWriter, aItem *item.Item, aReader io.Reader) {
+	w.Header().Add("id", aItem.ID)
+	properties := "["
+	for i, p := range aItem.Properties {
+		if i != 0 {
+			properties += ","
+		}
+		properties += "{\"name\" : \"" + p.Name + "\", \"value\" : \"" + p.Value + "\"}"
+	}
+	properties += "]"
+	w.Header().Add("properties", properties)
+	if aReader != nil {
+		bytes := make([]byte, 2000)
+		count, err := aReader.Read(bytes)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+		} else {
+			w.WriteHeader(http.StatusOK)
+			for count > 0 {
+				w.Write(bytes[0:count])
+				count, _ = aReader.Read(bytes)
+			}
+		}
+	} else {
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
@@ -146,43 +190,25 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 			} else if item == nil {
 				this.notFound(w)
 			} else {
-				buffer := make([]byte, 1000)
-				w.Header().Add("id", item.ID)
-				properties := "["
-				for i, p := range item.Properties {
-					if i != 0 {
-						properties += ","
-					}
-					properties += "{\"name\" : \"" + p.Name + "\", \"value\" : \"" + p.Value + "\"}"
-				}
-				properties += "]"
-				w.Header().Add("properties", properties)
-				item.Reset()
-				if reader != nil {
-					count, err := reader.Read(buffer)
-					// TODO support BIG FILE
-					if err != nil {
-						w.WriteHeader(http.StatusInternalServerError)
-						w.Write([]byte(err.Error()))
-					} else {
-						w.WriteHeader(http.StatusOK)
-						w.Write(buffer[0:count])
-					}
-				} else {
-					w.WriteHeader(http.StatusNoContent)
-				}
+				this.writeItem(w, item, reader)
 			}
 		} else if strings.HasSuffix(topicName, "/list") {
 			topicName = topicName[0 : len(topicName)-len("/list")]
-			items,_ := this.store.List(topicName)
-			var displayableItems []DisplayableItem
-			for _,i := range items {
-				displayableItems = append(displayableItems,DisplayableItem{ID : i.ID, Age : i.GetAge(), Properties : i.Properties})
+			iterator, err := this.store.List(topicName)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("Error during list "+ err.Error()))
+				this.context.Logger.Println("ERROR items list",err)
+				return
 			}
-			this.context.Logger.Println("DEBUG items list of "+topicName,displayableItems)
+			var displayableItems []DisplayableItem
+			for iterator.HasNext() {
+				item,_ := iterator.Next().(*item.Item)
+				displayableItems = append(displayableItems, DisplayableItem{ID: item.ID, Age: item.GetAge(), Properties: item.Properties})
+			}
+			this.context.Logger.Println("DEBUG items list of "+topicName, displayableItems)
 			w.WriteHeader(http.StatusOK)
 			callback := req.Form["callback"]
-			this.context.Logger.Println("DEBUG callback",callback)
 			if callback != nil {
 				w.Write([]byte(callback[0] + "("))
 			}
@@ -191,6 +217,72 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 			if callback != nil {
 				w.Write([]byte(")"))
 			}
+		} else if strings.HasSuffix(topicName, "/rss") {
+			rootUrl := "http://" + req.Host + "/"
+			topicName = topicName[0 : len(topicName)-len("/rss")]
+			iterator, err := this.store.List(topicName)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("Error during list "+ err.Error()))
+				this.context.Logger.Println("ERROR items list",err)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("content-type", "xml/rss")
+			w.Write([]byte("<?xml version=\"1.0\"?>\n<rss version=\"2.0\">\n"))
+			w.Write([]byte("<channel>\n"))
+			w.Write([]byte("<title>Content of the Topic " + topicName + "</title>\n"))
+			w.Write([]byte("<link>" + rootUrl + "topic/" + topicName + "/rss</link>\n"))
+			w.Write([]byte("<description>Content of the Topic " + topicName + "</description>"))
+			w.Write([]byte("<language>en-US</language>\n"))
+			w.Write([]byte("<pubDate>" + time.Now().Format(env.DATE_FORMAT) + "</pubDate>\n"))
+			w.Write([]byte("<lastBuildDate>" + time.Now().Format(env.DATE_FORMAT) + "</lastBuildDate>\n"))
+			w.Write([]byte("<docs>https://github.com/milak/magicmq</docs>\n"))
+			w.Write([]byte("<generator>Magic MQ " + this.context.Configuration.Version + "</generator>\n"))
+			//w.Write([]byte("<managingEditor></managingEditor>"))
+			//w.Write([]byte("<webMaster>webmaster@example.com</webMaster>"))
+			index := 0
+			for iterator.HasNext() {
+				item,_ := iterator.Next().(*item.Item)
+				w.Write([]byte("<item>\n"))
+				w.Write([]byte("<title>Item #" + item.ID + "</title>\n"))
+				w.Write([]byte("<link>" + rootUrl + "item/" + item.ID + "</link>\n"))
+				description := "Item stored "
+				topicList := ""
+				for i,topic := range item.Topics {
+					if i > 0 {
+						topicList += ", "
+					}
+					topicList += topic
+				}
+				if len(item.Topics) > 1 {
+					description += "in the topics : "+topicList
+				} else {
+					description += "in the topic : " +topicList
+				}
+				description += " since "+item.CreationDate.Format(env.DATE_FORMAT)
+				if len(item.Properties) > 0 {
+					properties := ""
+					for i,property := range item.Properties {
+						if i > 0 {
+							topicList += ", "
+						}
+						properties += property.Name + " = " + property.Value
+					}
+					description += " with properties : "+properties
+				}
+				w.Write([]byte("<description>"+description+"</description>\n"))
+				w.Write([]byte("<pubDate>" + item.CreationDate.Format(env.DATE_FORMAT) + "</pubDate>\n"))
+				w.Write([]byte("<guid>" + item.ID + "</guid>\n"))
+				w.Write([]byte("</item>\n"))
+				index++
+				if index == 10 {
+					break
+				}
+			}
+			w.Write([]byte("</channel>\n"))
+			w.Write([]byte("</rss>\n"))
+
 		} else {
 			topic := this.context.Configuration.GetTopic(topicName)
 			if topic == nil {
@@ -241,13 +333,13 @@ func (this *HttpService) logListener(w http.ResponseWriter, req *http.Request) {
 	file, err := os.Open("mmq.log")
 	if err != nil {
 		this.notFound(w)
-		this.context.Logger.Println("Unable to open log file",err)
+		this.context.Logger.Println("Unable to open log file", err)
 	} else {
 		w.WriteHeader(http.StatusOK)
 		data := make([]byte, 100)
 		count, err := file.Read(data)
 		if err != nil {
-			this.context.Logger.Println("Unable to open log file",err)
+			this.context.Logger.Println("Unable to open log file", err)
 		} else {
 			for count > 0 {
 				w.Write(data[:count])
@@ -280,7 +372,7 @@ func (this *HttpService) Start() {
 			if root == nil {
 				panic("Configuration error : missing root parameter for ADMIN service")
 			}
-			this.context.Logger.Println("Starting ADMIN service with root '"+ (*root)+"'")
+			this.context.Logger.Println("Starting ADMIN service with root '" + (*root) + "'")
 			http.Handle("/", http.FileServer(http.Dir(*root)))
 		} else if service.Name == "REST" {
 			for p := range service.Parameters {
@@ -297,6 +389,7 @@ func (this *HttpService) Start() {
 			http.HandleFunc("/topic", this.topicListListener)
 			http.HandleFunc("/topic/", this.topicListener)
 			http.HandleFunc("/item", this.itemListener)
+			http.HandleFunc("/item/", this.itemListener)
 			http.HandleFunc("/info", this.infoListener)
 			http.HandleFunc("/log", this.logListener)
 			http.HandleFunc("/shutdown", this.shutdownListener)

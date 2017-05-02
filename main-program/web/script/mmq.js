@@ -202,6 +202,7 @@ function loadTopic(aTopicName) {
 			$("#form-topic-item-properties").html("");
 			$("#form-topic-item-value").val("");
 			$("#form-topic-item-list").html("");
+			$("#form-topic-rsslink").prop("href","/topic/"+aTopicName+"/rss");
 			var html = "";
 			for (var i = 0; i < data.Parameters.length; i++) {
 				var property = data.Parameters[i];
@@ -351,9 +352,9 @@ function listItems() {
 					if (item.Properties != null) {
 						for (var p = 0; p < item.Properties.length; p++){
 							if (p > 0){
-								properties += ";";
+								properties += " ; ";
 							}
-							properties += item.Properties[p].Name+":"+item.Properties[p].Value;
+							properties += "<b>"+item.Properties[p].Name+"</b> : "+item.Properties[p].Value;
 						}
 					}
 					html += "<tr><td>"+item.ID+"</td><td>"+Math.round(parseInt(item.Age)/1000000)+" ms</td><td>"+properties+"</td></tr>";

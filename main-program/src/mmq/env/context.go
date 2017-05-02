@@ -6,6 +6,7 @@ import (
 	"github.com/milak/network"
 	"os"
 )
+const DATE_FORMAT string = "Mon, 02 Jan 2006 15:04:05 MST"
 type Context struct {
 	Running			bool
 	Configuration 	*conf.Configuration
