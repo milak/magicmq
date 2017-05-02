@@ -4,14 +4,16 @@ import (
 	"mmq/env"
 	"mmq/conf"
 	"github.com/milak/event"
+	"github.com/milak/list"
 	"fmt"
 	"errors"
 	"bytes"
 	"io"
+	"strconv"
 )
 
 type ItemStore struct {
-	itemsByTopic 	map[string][]*Item
+	itemsByTopic 	map[string]*ItemList
 	contentsByItem 	map[string]*ItemContent
 	context 		*env.Context
 }
@@ -28,20 +30,25 @@ func (this StoreError) Error() string {
 	return fmt.Sprintf("%s : topic = %s item = %s", this.Message, this.Topic, this.Item)
 }
 func NewStore(aContext *env.Context) *ItemStore{
-	result := &ItemStore{itemsByTopic : make(map[string][]*Item), contentsByItem : make(map[string]*ItemContent), context : aContext}
+	result := &ItemStore{itemsByTopic : make(map[string]*ItemList), contentsByItem : make(map[string]*ItemContent), context : aContext}
 	return result
 }
 func (this *ItemStore) Push (aItem *Item, aContent io.Reader) error {
 	var buffer bytes.Buffer
 	bytes := make([]byte,2000)
+	total := 0
 	count, _ := aContent.Read(bytes)
 	for count > 0 {
+		total += count
 		buffer.Write(bytes[0:count])
 		count, _ = aContent.Read(bytes)
 	}
 	closer,isCloser := aContent.(io.Closer)
 	if isCloser {
 		closer.Close()
+	}
+	if !aItem.HasProperty(PROPERTY_SIZE){
+		aItem.AddProperty(PROPERTY_SIZE, strconv.Itoa(total))
 	}
 	this.contentsByItem[aItem.ID] = &ItemContent{bytes : buffer.Bytes(), linkNumber : len(aItem.Topics)}
 	// Pour chaque topic pour lequel il est enregistré
@@ -55,22 +62,55 @@ func (this *ItemStore) Push (aItem *Item, aContent io.Reader) error {
 		}
 		items := this.itemsByTopic[topicName]
 		if items == nil {
-			this.itemsByTopic[topicName] = make([]*Item,1)
-			this.itemsByTopic[topicName][0] = aItem
-		} else {
-			this.itemsByTopic[topicName] = append(this.itemsByTopic[topicName],aItem)
+			items = NewItemList()
+			this.itemsByTopic[topicName] = items
 		}
+		this.itemsByTopic[topicName].AddInTail(aItem)
 		event.EventBus.FireEvent(&ItemAdded{aItem,topic})
+		MaxItemCountString := topic.GetParameterByName(conf.PARAMETER_MAX_ITEM_COUNT)
+		if MaxItemCountString == "" || MaxItemCountString == "unlimited" {
+			continue
+		}
+		MaxItemCount, err := strconv.Atoi(MaxItemCountString)
+		if err != nil {
+			return StoreError{"Unable to parse " + conf.PARAMETER_MAX_ITEM_COUNT + " parameter in topic " + topicName + " "+ MaxItemCountString,topicName,"nil"}
+		}
+		if items.Size() > MaxItemCount {
+			go this.Pop(topicName)
+		}
 	}
 	return nil
 }
-func (this *ItemStore) GetContent(aItemID string, purge bool) io.Reader {
+/**
+ * Get a item by its ID
+ * TODO optimize this method
+ */
+func (this *ItemStore) GetItem(aId string) *Item {
+	for _,items := range this.itemsByTopic {
+		if items == nil {
+			continue
+		}
+		iterator := items.Iterator()
+		for iterator.HasNext() {
+			item := iterator.Next().(*Item)
+			if item.ID == aId {
+				return item
+			}
+		}
+	}
+	return nil
+}
+func (this *ItemStore) GetContent(aItemID string, purge bool) (io.Reader, error) {
 	theBytes := this.contentsByItem[aItemID].bytes
+	if theBytes == nil {
+		return nil, errors.New("Item not found")
+	}
 	result := bytes.NewBuffer(theBytes)
 	if purge {
+		// TODO do not remove but unlink
 		this.RemoveContent(aItemID)
 	}
-	return result
+	return result, nil
 }
 func (this *ItemStore) Pop(aTopicName string) (*Item, io.Reader, error) {
 	topic := this.context.Configuration.GetTopic(aTopicName)
@@ -79,13 +119,13 @@ func (this *ItemStore) Pop(aTopicName string) (*Item, io.Reader, error) {
 	}
 	if topic.Type == conf.SIMPLE {
 		items := this.itemsByTopic[aTopicName]
-		if len(items) == 0 {
+		if items == nil || items.IsEmpty() {
 			return nil, nil, nil
 		} else {
-			item := items[0]
-			this.itemsByTopic[aTopicName] = items[1:]
+			item := items.PopHead()
 			event.EventBus.FireEvent(&ItemRemoved{item,topic})
-			return item, this.GetContent(item.ID,true), nil
+			content, _ := this.GetContent(item.ID,true)
+			return item, content, nil
 		}
 	} else {
 		subTopics := topic.TopicList
@@ -101,11 +141,11 @@ func (this *ItemStore) Pop(aTopicName string) (*Item, io.Reader, error) {
 					return nil, nil, StoreError{"Topic not found",subTopicName,"nil"}
 				}
 				items := this.itemsByTopic[subTopicName]
-				if len(items) != 0 {
-					item := items[0]
-					this.itemsByTopic[subTopicName] = items[1:]
+				if !items.IsEmpty() {
+					item := items.PopHead()
 					event.EventBus.FireEvent(&ItemRemoved{item,subTopic})
-					return item, this.GetContent(item.ID,true), nil
+					content, _ := this.GetContent(item.ID,true)
+					return item, content, nil
 				}
 			}
 		} else if strategy == conf.ROUND_ROBIN {
@@ -130,73 +170,121 @@ func (this *ItemStore) RemoveItem(aTopicName string, aItem *Item) error {
 		return StoreError{"Topic not found",aTopicName,aItem.ID}
 	}
 	items := this.itemsByTopic[aTopicName]
-	for i,item := range items {
+	iterator := items.Iterator()
+	for iterator.HasNext() {
+		itemI,node := iterator.NextWithNode()
+		item := itemI.(*Item)
 		if item.ID == aItem.ID {
+			items.Remove(node)
 			event.EventBus.FireEvent(&ItemRemoved{item,topic})
-			this.itemsByTopic[aTopicName] = append(items[0:i],items[i+1:]...)
+			// TODO determine if i have to remove item (cause can be in other topics
+			this.RemoveContent(aItem.ID)
 			return nil
 		}
 	}
-	// TOD determine if i have to remove item (cause can be in other topics
-	this.RemoveContent(aItem.ID)
 	return StoreError{"Item not found in topic",aTopicName,aItem.ID}
 }
-func (this *ItemStore) List(aTopicName string) ([]*Item, error) {
+func (this *ItemStore) List(aTopicName string) (list.Iterator, error) {
 	topic := this.context.Configuration.GetTopic(aTopicName)
 	if topic == nil {
 		return nil, StoreError{"Topic not found",aTopicName,"nil"}
 	}
-	var result []*Item = nil
+	var result list.Iterator = nil
 	if topic.Type == conf.SIMPLE {
-		result = this.itemsByTopic[aTopicName]
-		if result == nil {
+		itemList := this.itemsByTopic[aTopicName]
+		if itemList == nil {
 			topic := this.context.Configuration.GetTopic(aTopicName)
 			if topic != nil {
-				result = []*Item{}
+				result = NewEmptyIterator()
+			} else {
+				return nil, errors.New("Topic not found " + aTopicName)
 			}
+		} else {
+			result = itemList.Iterator()
 		}
-	} else {
+	} else if topic.Type == conf.VIRTUAL {
 		subTopics := topic.TopicList
+		iterators := []list.Iterator{}
+		for _,subTopicName := range subTopics {
+			items := this.itemsByTopic[subTopicName]
+			if items == nil {
+				//faut-il vérifier que le topic existe ? 
+				subTopic := this.context.Configuration.GetTopic(subTopicName)
+				if subTopic == nil {
+					return nil, errors.New(subTopicName + " subTopic not found")
+				}
+				continue
+			}
+			if items.IsEmpty() {
+				continue
+			}
+			iterators = append(iterators,items.Iterator())
+		}
 		strategy := topic.GetParameterByName(conf.PARAMETER_STRATEGY)
 		if strategy == "" {
 			strategy = conf.ORDERED
 		}
 		if strategy == conf.ORDERED {
-			result = []*Item{}
-			// Par défaut on est en mode ORDERED : on vide le premier topic avant de vider le second
+			result = NewOrderedIterator(iterators)
+		} else if strategy == conf.ROUND_ROBIN {
+			result = NewRoundRobinIterator(iterators)
+			
+			
+/*			itemList := NewItemList()
+			// Par défaut on est en mode ORDERED : on liste le premier topic avant de parcourir le second
 			for _,subTopicName := range subTopics {
 				//faut-il vérifier que le topic existe ? subTopic := this.configuration.GetTopic(subTopicName)
 				items := this.itemsByTopic[subTopicName]
-				for _,item := range items {
-					result = append(result,item)
+				if items == nil {
+					continue
+				}
+				iterator := items.Iterator()
+				for iterator.HasNext() {
+					item := iterator.Next().(*Item)
+					itemList.AddInTail(item)
 				}
 			}
+			result = itemList.Iterator()
 		} else if strategy == conf.ROUND_ROBIN {
-			result = []*Item{}
-			// TODO implémenter la stratégie ROUND-ROBIN 
+			itemList := NewItemList()
 			// on alterne dans chaque sub topic
-			topics := []string{}
+			iterators := []*Iterator{}
 			for _,subTopicName := range subTopics {
-				topics = append(topics,subTopicName)
+				items := this.itemsByTopic[subTopicName]
+				if items == nil {
+					continue
+				}
+				if items.IsEmpty() {
+					continue
+				}
+				iterators = append(iterators,items.Iterator())
 			}
-			for len(topics) > 0 {
-				newTopics := []string{}
-				for _,subTopicName := range topics {
-					items := this.itemsByTopic[subTopicName]
-					if len(items) == 0 {
+			for len(iterators) > 0 {
+				newIterators := []*Iterator{}
+				for _,iterator := range iterators {
+					if !iterator.HasNext() {
 						continue
 					}
-					result = append(result,items[0])
-					newTopics = append(newTopics,subTopicName)
+					item := iterator.Next().(*Item)
+					itemList.AddInTail(item)
+					newIterators = append(newIterators,iterator)
 				}
-				topics = newTopics
+				iterators = newIterators
 			}
+			result = itemList.Iterator()*/
 		} else {
 			return nil, errors.New(strategy + " strategy not recognized")
 		}
+	} else {
+		return nil, errors.New(topic.Type + " type not recognized")
 	}
 	return result, nil
 }
 func (this *ItemStore) Count(aTopicName string) int {
-	return len(this.itemsByTopic[aTopicName])
+	itemList := this.itemsByTopic[aTopicName]
+	if itemList == nil {
+		return 0
+	} else {
+		return itemList.Size()
+	} 
 }

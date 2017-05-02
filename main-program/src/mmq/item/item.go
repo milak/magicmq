@@ -4,9 +4,14 @@ import (
 	"io"
 	"math"
 	"time"
+	"mmq/env"
 	"github.com/google/uuid"
 )
 
+const PROPERTY_ID = "id"
+const PROPERTY_SIZE = "size"
+const PROPERTY_PRIORITY = "priority"
+const PROPERTY_CREATION_DATE = "creation_date"
 
 /*type Item struct {
 	io.Reader
@@ -23,19 +28,30 @@ type Property struct {
 type Item struct {
 	ID 				string
 	Topics			[]string
-	creationDate	time.Time
+	CreationDate	time.Time
 	value 			[]byte
 	ptr 			int
 	Properties 		[]Property
 	shared			bool
 }
 func NewItem (aTopics []string) *Item{
-	return &Item{ID : uuid.New().String(), creationDate : time.Now(), Topics : aTopics, ptr : 0}
+	result := &Item{ID : uuid.New().String(), CreationDate : time.Now(), Topics : aTopics, ptr : 0}
+	result.AddProperty(PROPERTY_CREATION_DATE, result.CreationDate.Format(env.DATE_FORMAT))
+	result.AddProperty(PROPERTY_ID, result.ID)
+	return result
 }
 func (this *Item) AddProperty(aName,aValue string) *Property {
 	result := Property{Name : aName, Value : aValue}
 	this.Properties = append(this.Properties,result)
 	return &result
+}
+func (this *Item) HasProperty(aName string) bool {
+	for _,property := range this.Properties {
+		if property.Name == aName {
+			return true
+		}
+	}
+	return false
 }
 func (this *Item) Read(dest []byte) (n int, err error) {
 	if this.ptr >= len(this.value) {
@@ -50,7 +66,7 @@ func (this *Item) Read(dest []byte) (n int, err error) {
 }
 func (this *Item) GetAge() time.Duration {
 	now := time.Now()
-	return now.Sub(this.creationDate)
+	return now.Sub(this.CreationDate)
 }
 func (this *Item) Size() int {
 	return len(this.value)
