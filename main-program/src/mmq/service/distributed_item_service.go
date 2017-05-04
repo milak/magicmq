@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"github.com/milak/event"
 	"github.com/milak/math"
 	"log"
@@ -21,7 +20,6 @@ type DistributedItemService struct {
 	store                   *item.ItemStore
 	logger                  *log.Logger
 	sharedItems             map[string]*dist.SharedItem
-	contents                map[string][]byte
 	receivedItemsByInstance map[string][]*dist.SharedItem
 	_iterationBeforeLogging	int
 }
@@ -30,7 +28,6 @@ func NewDistributedItemService(aContext *env.Context, aPool *dist.InstancePool, 
 	result := &DistributedItemService{context: aContext, pool: aPool, store: aStore}
 	result.sharedItems = make(map[string]*dist.SharedItem)
 	result.receivedItemsByInstance = make(map[string][]*dist.SharedItem)
-	result.contents = make(map[string][]byte)
 	result.logger = aContext.Logger
 	result._iterationBeforeLogging = _ITERATIONS_BEFORE_LOGGING
 	return result
@@ -72,7 +69,7 @@ func (this *DistributedItemService) Event(aEvent interface{}) {
 			return
 		}
 		delete(this.sharedItems, e.Item.ID)
-		delete(this.contents, e.Item.ID)
+		this.store.RemoveContent(e.Item.ID)
 		for _, i := range sharedItem.Instances {
 			instanceConnection := this.pool.GetInstanceByName(i)
 			if instanceConnection != nil {
@@ -93,7 +90,7 @@ func (this *DistributedItemService) Event(aEvent interface{}) {
 	case *dist.ItemContentReceived:
 		this.logger.Println("ItemContentReceived item :", e.ID, " from :", e.From)
 		this.logger.Println("ItemContentReceived content of the item", string(e.Content))
-		this.contents[e.ID] = e.Content
+		this.store.StoreForDistributedItemService(e.ID,e.Content)
 	case *dist.ItemRemoved:
 		this.logger.Println("ItemRemove item :", e.ID, " from :", e.From)
 		sharedItems := this.receivedItemsByInstance[e.From.Name()]
@@ -138,15 +135,20 @@ func (this *DistributedItemService) Event(aEvent interface{}) {
 					PARAMETER_DISTRIBUTION_STRATEGY_EXACTLY_ONCE
 					PARAMETER_DISTRIBUTION_STRATEGY_AT_MOST_ONCE
 					*/
-					// I have to take this item as mine
-					// Add this item as if it would have been received for me
-					// Ensure this item will be stored in only this topic
-					sharedItem.Item.Topics = []string{topic.Name}
-					data := this.contents[sharedItem.Item.ID]
-					this.logger.Println("DEBUG content of the item to reuse ", string(data))
-					buffer := bytes.NewBuffer(data)
-					this.store.Push(sharedItem.Item, buffer) // TODO not optimized, consider reown without using push
-					delete(this.contents, sharedItem.Item.ID) // no need to keep because i own it
+					// I have to take this item as mine :
+					// Remove previous first owner (me)
+					sharedItem.Instances = sharedItem.Instances[1:]
+					// Add this item in my shared items
+					this.sharedItems[sharedItem.Item.ID] = sharedItem
+					// Add the item in the item list in my topic
+					this.store.LinkForDistributedItemService(sharedItem.Item,topic)
+					// let's say other instances i manage the item
+					for _, i := range sharedItem.Instances {
+						instanceConnection := this.pool.GetInstanceByName(i)
+						if instanceConnection != nil {
+							instanceConnection.SendItem(sharedItem)
+						}
+					}
 				}
 			}
 		}

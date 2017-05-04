@@ -1,7 +1,10 @@
 package conf
 
 import (
+	"errors"
 	"time"
+	"strings"
+	"strconv"
 )
 const SIMPLE 	= "SIMPLE"
 const VIRTUAL 	= "VIRTUAL"
@@ -29,6 +32,7 @@ const DISTRIBUTED_ALL 		= "ALL"
 const PARAMETER_DISTRIBUTED_GROUPS = "DistributedGroups"
 
 const PARAMETER_MAX_ITEM_COUNT = "MaxItemCount"
+const PARAMETER_MAX_ITEM_SIZE = "MaxItemSize"
 
 const PARAMETER_TIME_TO_LIVE = "TimeToLive"
 
@@ -41,6 +45,7 @@ type Topic struct {
 	Type 		string
 	TopicList 	[]string `json:"Topics,omitempty"`
 	Parameters 	[]Parameter `json:"Parameters,omitempty"`
+	maxItemSize	*int32
 }
 func NewTopic(aName string) *Topic {
 	return &Topic{TimeStamp : makeTimestamp(), Name : aName, Type : SIMPLE}
@@ -86,4 +91,41 @@ func (this *Topic) GetTimeToLive() (*time.Duration, error) {
 		return nil,err
 	}
 	return &duration, nil
+}
+func (this *Topic) GetMaxItemSize() (int32, error) {
+	// Already computed ?
+	if this.maxItemSize != nil {
+		return *this.maxItemSize,nil
+	}
+	maxItemSizeString := this.GetParameterByName(PARAMETER_MAX_ITEM_SIZE)
+	if maxItemSizeString != "" {
+		var unit int32
+		maxItemSizeString = strings.ToLower(maxItemSizeString)
+		if strings.HasSuffix(maxItemSizeString, "go") {
+			maxItemSizeString = maxItemSizeString[0:len(maxItemSizeString)-2]
+			unit = 1000000000
+		} else if strings.HasSuffix(maxItemSizeString, "mo") {
+			maxItemSizeString = maxItemSizeString[0:len(maxItemSizeString)-2]
+			unit = 1000000
+		} else if strings.HasSuffix(maxItemSizeString, "ko") {
+			maxItemSizeString = maxItemSizeString[0:len(maxItemSizeString)-2]
+			unit = 1000
+		} else if strings.HasSuffix(maxItemSizeString, "o") {
+			maxItemSizeString = maxItemSizeString[0:len(maxItemSizeString)-1]
+			unit = 1
+		} else {
+			return -1, errors.New("Unable to parse " + this.GetParameterByName(PARAMETER_MAX_ITEM_SIZE))
+		}
+		maxItemSizeString = strings.Trim(maxItemSizeString, " \t")
+		maxItemSize,err := strconv.Atoi(maxItemSizeString)
+		if err != nil {
+			return -1, errors.New("Unable to parse " + this.GetParameterByName(PARAMETER_MAX_ITEM_SIZE))
+		}
+		var maxItemSizeint32 int32 = int32(maxItemSize) * unit
+		this.maxItemSize = &maxItemSizeint32
+	} else {
+		var maxItemSize int32 = 0
+		this.maxItemSize = &(maxItemSize)
+	}
+	return *this.maxItemSize,nil
 }

@@ -2,7 +2,6 @@ package item
 
 import (
 	"github.com/milak/list"
-	"fmt"
 )
 
 type Iterator struct {
