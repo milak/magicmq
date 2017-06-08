@@ -37,7 +37,7 @@ func (this *AutoCleanService) Stop(){
 	this.running = false
 }
 func (this *AutoCleanService) run (){
-	this.context.Logger.Println("Starting autoclean")
+	this.context.Logger.Println("INFO Starting autoclean")
 	// TODO prendre en compte lorsqu'un nouveau TOPIC est ajouté ou mis à jour via les évènements
 	topics, timeToLives := computeTimeToLivesAndTopics(this.context)
 	for this.running && this.context.Running {

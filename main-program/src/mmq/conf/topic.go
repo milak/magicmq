@@ -65,6 +65,9 @@ func (this *Topic) IsDistributed() bool {
 	}
 	return false
 }
+func (this *Topic) AddParameter(aParameterName string, aValue string) {
+	this.Parameters = append(this.Parameters,*NewParameter(aParameterName, aValue))
+}
 func (this *Topic) GetParameterByName(aParameterName string) string {
 	for _,p := range this.Parameters {
 		if p.Name == aParameterName {

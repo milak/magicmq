@@ -38,8 +38,9 @@ func NewStore(aContext *env.Context) *ItemStore {
  * Warning this method is not a good way to store content for shareditem.
  * TODO : find a best way to do
  */
-func (this *ItemStore) StoreForDistributedItemService(aItemId string, aBytes []byte){
-	this.contentsByItem[aItemId] = &ItemContent{ bytes : aBytes, linkNumber : 1}
+func (this *ItemStore) StoreForDistributedItemService(aItemId string, aBytes *[]byte){
+	this.contentsByItem[aItemId] = &ItemContent{ bytes : *aBytes, linkNumber : 1}
+	this.context.Logger.Println("DEBUG Stored for '"+aItemId+"' data ", string(*aBytes))
 }
 /**
  * Warning this method is not a good way to link an item in a topic.
@@ -79,7 +80,7 @@ func (this *ItemStore) Push(aItem *Item, aContent io.Reader) error {
 			return StoreError{"Unable to push in virtual topic", topicName, "nil"}
 		}
 		maxItemSize, err := topic.GetMaxItemSize()
-		this.context.Logger.Println("Max item size ", maxItemSize)
+		this.context.Logger.Println("DEBUG Max item size ", maxItemSize)
 		if err != nil {
 			this.contentsByItem[aItem.ID] = nil
 			return errors.New("Unable to get max item size in topic" + err.Error())
@@ -94,6 +95,7 @@ func (this *ItemStore) Push(aItem *Item, aContent io.Reader) error {
 			return err
 		}
 	}
+	this.context.Logger.Println("DEBUG Item successfully added")
 	return nil
 }
 func (this *ItemStore) _addItemInTopic(aItem *Item, aTopic *conf.Topic, aFireEvent bool) error {
@@ -140,13 +142,19 @@ func (this *ItemStore) GetItem(aId string) *Item {
 	return nil
 }
 func (this *ItemStore) GetContent(aItemID string, purge bool) (io.Reader, error) {
-	theBytes := this.contentsByItem[aItemID].bytes
+	this.context.Logger.Println("DEBUG Getting content for '"+aItemID+"'")
+	itemContent := this.contentsByItem[aItemID]
+	if itemContent == nil {
+		this.context.Logger.Println("WARNING no content found for '"+aItemID+"'")
+		return nil, errors.New("Item not found")
+	}
+	theBytes := itemContent.bytes
 	if theBytes == nil {
+		this.context.Logger.Println("WARNING no content found for '"+aItemID+"'")
 		return nil, errors.New("Item not found")
 	}
 	result := bytes.NewBuffer(theBytes)
 	if purge {
-		// TODO do not remove but unlink
 		this.RemoveContent(aItemID)
 	}
 	return result, nil
@@ -197,11 +205,15 @@ func (this *ItemStore) Pop(aTopicName string) (*Item, io.Reader, error) {
 		return nil, nil, nil
 	}
 }
-func (this *ItemStore) RemoveContent(aItemID string) {
+func (this *ItemStore) RemoveContent(aItemID string) error {
+	if this.contentsByItem[aItemID] == nil {
+		return errors.New("Cannot find item "+aItemID)
+	}
 	this.contentsByItem[aItemID].linkNumber--
 	if this.contentsByItem[aItemID].linkNumber <= 0 {
 		delete(this.contentsByItem, aItemID)
 	}
+	return nil
 }
 func (this *ItemStore) RemoveItem(aTopicName string, aItem *Item) error {
 	topic := this.context.Configuration.GetTopic(aTopicName)

@@ -39,9 +39,9 @@ func (this *DistributedItemService) Event(aEvent interface{}) {
 	case *item.ItemAdded:
 		if e.Topic.IsDistributed() {
 			distributionPolicy := e.Topic.GetParameterByName(conf.PARAMETER_DISTRIBUTED)
-			this.context.Logger.Println("Received new distributed item policy :", distributionPolicy)
+			this.context.Logger.Println("DEBUG Received new distributed item. Policy :", distributionPolicy)
 			if distributionPolicy == "0" || distributionPolicy == "1" || distributionPolicy == "" {
-				this.context.Logger.Println("No need to distribute : distributionPolicy == '" + distributionPolicy + "'")
+				this.context.Logger.Println("DEBUG No need to distribute : distributionPolicy == '" + distributionPolicy + "'")
 				return
 			}
 			groups := e.Topic.GetParameterByName(conf.PARAMETER_DISTRIBUTED_GROUPS)
@@ -69,30 +69,29 @@ func (this *DistributedItemService) Event(aEvent interface{}) {
 			return
 		}
 		delete(this.sharedItems, e.Item.ID)
-		this.store.RemoveContent(e.Item.ID)
 		for _, i := range sharedItem.Instances {
 			instanceConnection := this.pool.GetInstanceByName(i)
 			if instanceConnection != nil {
-				this.context.Logger.Println("Saying it to", i)
+				this.context.Logger.Println("DEBUG Saying it to", i)
 				instanceConnection.SendRemoveItem(e.Item.ID)
 			} else {
 				this.context.Logger.Println("WARNING unable to get connection to ", i)
 			}
 		}
 	case *dist.ItemReceived:
-		this.logger.Println("ItemReceived item :", e.Item, " from :", e.From)
+		this.logger.Println("DEBUG ItemReceived item :", e.Item, " from :", e.From)
 		sharedItems := this.receivedItemsByInstance[e.From.Name()]
 		this.receivedItemsByInstance[e.From.Name()] = append(sharedItems, e.Item)
-		this.logger.Println("- now contains :")
+		this.logger.Println("DEBUG - now contains :")
 		for _, i := range this.receivedItemsByInstance[e.From.Name()] {
 			this.logger.Println(i)
 		}
 	case *dist.ItemContentReceived:
-		this.logger.Println("ItemContentReceived item :", e.ID, " from :", e.From)
-		this.logger.Println("ItemContentReceived content of the item", string(e.Content))
-		this.store.StoreForDistributedItemService(e.ID,e.Content)
+		this.logger.Println("DEBUG ItemContentReceived item :", e.ID, " from :", e.From)
+		this.logger.Println("DEBUG ItemContentReceived content of the item", string(e.Content))
+		this.store.StoreForDistributedItemService(e.ID,&e.Content)
 	case *dist.ItemRemoved:
-		this.logger.Println("ItemRemove item :", e.ID, " from :", e.From)
+		this.logger.Println("DEBUG ItemRemove item :", e.ID, " from :", e.From)
 		sharedItems := this.receivedItemsByInstance[e.From.Name()]
 		for i, item := range sharedItems {
 			if item.Item.ID == e.ID {
@@ -100,13 +99,13 @@ func (this *DistributedItemService) Event(aEvent interface{}) {
 				break
 			}
 		}
-		this.logger.Println("- now contains :")
+		this.logger.Println("DEBUG - now contains :")
 		for _, i := range this.receivedItemsByInstance[e.From.Name()] {
 			this.logger.Println(i)
 		}
 	case *dist.InstanceDisconnected:
 		me := this.context.InstanceName
-		this.logger.Println("Instance disconnected ", e.Instance.Name())
+		this.logger.Println("DEBUG Instance disconnected ", e.Instance.Name())
 		// Maybe this instance shared items
 		sharedItems := this.receivedItemsByInstance[e.Instance.Name()]
 		if sharedItems != nil && len(sharedItems) != 0 {
@@ -123,6 +122,7 @@ func (this *DistributedItemService) Event(aEvent interface{}) {
 					if sharedItem.Instances[0] != me {
 						// i am not the next
 						// I keep the content of the item
+						// TODO WHat about verifying this instance is alive 
 						continue
 					}
 					strategy := topic.GetParameterByName(conf.PARAMETER_DISTRIBUTION_STRATEGY)
@@ -160,6 +160,13 @@ func (this *DistributedItemService) Event(aEvent interface{}) {
 				if instance == e.Instance.Name() {
 					this.logger.Println("DEBUG removing item share with ", instance)
 					sharedItem.RemoveInstance(instance)
+					// Let's say to other instances
+					for _,otherInstance := range sharedItem.Instances {
+						instanceConnection := this.pool.GetInstanceByName(otherInstance)
+						if instanceConnection != nil {
+							instanceConnection.SendItem(sharedItem)
+						}
+					} 
 					break;
 				}
 			}
@@ -283,20 +290,20 @@ func (this *DistributedItemService) _distributeItem(aSharedItem *dist.SharedItem
 	if count > len(retainedInstances) {
 		count = len(retainedInstances)
 	}
-	this.context.Logger.Println("I will take ",count, "instances in", len(retainedInstances)," available instances")
+	this.context.Logger.Println("DEBUG I will take ",count, "instances in", len(retainedInstances)," available instances")
 	// distribute item to other instances
 	// let's randomly permut 
 	now := time.Now()
 	rand.Seed(int64(now.Nanosecond()))
 	ids := rand.Perm(len(retainedInstances))
-	this.context.Logger.Println("ids",ids)
+	this.context.Logger.Println("DEBUG ids",ids)
 	// let's select the instances
 	newInstance := make(map[string]bool)
 	for count > 0 {
 		id := ids[count-1]
-		this.context.Logger.Println("id",id)
+		this.context.Logger.Println("DEBUG id",id)
 		i := retainedInstances[id]
-		this.context.Logger.Println("Selected", i)
+		this.context.Logger.Println("DEBUG Selected", i)
 		newInstance[i.Name()]=true
 		aSharedItem.AddInstance(i.Name())
 		count--
@@ -316,7 +323,11 @@ func (this *DistributedItemService) _distributeItem(aSharedItem *dist.SharedItem
 			if _,isNew := newInstance[i]; isNew {
 				//this.context.Logger.Println("Not yet shared with him ", i)
 				bytes := make([]byte, 2000)
-				reader, _ := this.store.GetContent(aSharedItem.Item.ID, false)
+				reader, err := this.store.GetContent(aSharedItem.Item.ID, false)
+				if err != nil {
+					this.context.Logger.Println("WARNING I can't find the content of an item ", aSharedItem.Item.ID)
+					continue
+				}
 				count, _ := reader.Read(bytes)
 				writer := instanceConnection.SendItemContent(aSharedItem.Item.ID, count)
 				writer.Write(bytes[0:count])

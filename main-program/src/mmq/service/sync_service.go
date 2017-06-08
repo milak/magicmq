@@ -44,7 +44,7 @@ func (this *SyncService) Start (){
 					this.port = p.Value
 				}
 			}
-			this.logger.Println("starting...")
+			this.logger.Println("INFO starting...")
 			go this.scanInstances()
 			break
 		}
@@ -59,19 +59,19 @@ func (this *SyncService) Event(aEvent interface{}) {
 				instanceConnection.Close()
 			}
 		case *dist.TopicReceived :
-			this.logger.Println("Received topic : " + e.Topic.Name)
+			this.logger.Println("DEBUG Received topic : " + e.Topic.Name)
 			existingTopic := this.context.Configuration.GetTopic(e.Topic.Name)
 			if existingTopic != nil {
-				this.logger.Println("Skipped because allready known")
+				this.logger.Println("DEBUG Skipped because allready known")
 			} else {
 				this.context.Configuration.AddTopic(e.Topic)
 			}
 		case *dist.InstanceReceived :
 			if (e.Instance.Host == this.context.Host) && (e.Instance.Port == this.port) {
-				//this.logger.Println("Skipped instance cause it is me :)")
+				//this.logger.Println("DEBUG Skipped instance cause it is me :)")
 			} else {
 				if this.context.Configuration.AddInstance(e.Instance) {
-					this.logger.Println("Added instance :",e.Instance)
+					this.logger.Println("DEBUG Added instance :",e.Instance)
 				}
 			}
 		case *dist.InstanceDisconnected :

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 )
 const PARAMETER_PORT = "port"
+const DEFAULT_SYNC_PORT = "1789"
 const APP_VERSION = "0.1" // The version of the current application
 type Configuration struct {
 	Version 	string
@@ -14,11 +15,15 @@ type Configuration struct {
 	fileName 	string
 	Services 	[]*Service
 }
-
-type Parameter struct {
-	Name 		string
-	Value 		string
+func NewConfiguration(aFileName string) *Configuration {
+	return &Configuration{
+		Version 		: APP_VERSION, 
+		fileName 		: aFileName,
+		Instances 		: make([]*Instance,0), 
+		Services 		: make([]*Service,0), 
+		Topics 			: make([]*Topic,0)}
 }
+
 func (this *Configuration) AddInstance(aInstance *Instance) bool{
 	if this.GetInstance(aInstance.Name()) != nil {
 		return false
@@ -93,6 +98,12 @@ func (this *Configuration) RemoveTopic(aTopicName string) bool {
 	}
 	return found
 }
+func (this *Configuration) AddService(aService *Service) {
+	if aService == nil {
+		panic("Service cannot be nil")
+	}
+	this.Services = append(this.Services,aService)
+}
 func (this *Configuration) GetServiceByName(aServiceName string) *Service {
 	for _,service := range this.Services{
 		if service.Name == aServiceName {
@@ -117,30 +128,28 @@ func (this *Configuration) save(){
 /**
  * Constructor of Configuration if the file exists, the configuration is loaded, if the file doesn't exist, the file is created with default configuration
  */
-func InitConfiguration(aFileName string) *Configuration {
-	result := Configuration{Version 		: APP_VERSION,fileName 		: aFileName}
+func InitConfiguration(aFileName string) (*Configuration,bool) {
+	created := false
+	result := NewConfiguration(aFileName)
 	if _, err := os.Stat(aFileName); os.IsNotExist(err) {
+		created = true
 		result.Groups = []string{"all"}
-		result.Services = make([]*Service,3)
-		result.Services[0].Name = SERVICE_ADMIN
-		result.Services[0].Comment = "This service opens web administration. It requires REST service. Parameter : 'root' directory containing admin web files. Can be replaced by apache httpd."
-		result.Services[0].Active = true
-		result.Services[0].Parameters = make([]Parameter,1)
-		result.Services[0].Parameters[0].Name = "root"
-		result.Services[0].Parameters[0].Value = "web"
-		result.Services[1].Name = SERVICE_REST
-		result.Services[1].Comment = "This service opens REST API. Parameter : 'port' the listening port."
-		result.Services[1].Active = true
-		result.Services[1].Parameters = make([]Parameter,1)
-		result.Services[1].Parameters[0].Name = "port"
-		result.Services[1].Parameters[0].Value = "8080"
-		result.Services[2].Name = SERVICE_SYNC
-		result.Services[2].Comment = "This service opens SYNC port for clusterisation. Parameter : 'port' the listening port."
-		result.Services[2].Active = true
-		result.Services[2].Parameters = make([]Parameter,1)
-		result.Services[2].Parameters[0].Name = "port"
-		result.Services[2].Parameters[0].Value = "8080"
+		// Add ADMIN SERVICE
+		service := NewService(SERVICE_ADMIN,false,[]Parameter{*NewParameter("root","web")})
+		service.Comment = "This service opens web administration. It requires REST service. Parameter : 'root' directory containing admin web files. Can be replaced by apache httpd."
+		result.AddService(service)
+		// Add REST_SERVICE
+		service = NewService(SERVICE_REST,true,[]Parameter{*NewParameter(PARAMETER_PORT,"8080")})
+		service.Comment = "This service opens REST API. Parameter : 'port' the listening port."
+		result.AddService(service)
+		// Add SYNC_SERVICE
+		service = NewService(SERVICE_SYNC,false,[]Parameter{*NewParameter(PARAMETER_PORT,"1789")})
+		service.Comment = "This service opens SYNC port for clusterisation. Parameter : 'port' the listening port."
+		result.AddService(service)
 		/*result.Services[3].Name = "PROTOBUF"
+		result.Services[3].Comment = "TODO service"
+		result.Services[3].Active = false*/
+		/*result.Services[3].Name = "AMQP"
 		result.Services[3].Comment = "TODO service"
 		result.Services[3].Active = false*/
 		result.save()
@@ -153,15 +162,25 @@ func InitConfiguration(aFileName string) *Configuration {
 			result.Groups = []string{"all"}
 		}
 		if result.Topics == nil {
-			result.Topics = make ([]*Topic,0)
+			result.Topics = make([]*Topic,0)
 		}
 		if result.Instances == nil {
-			result.Instances = make ([]*Instance,0)
+			result.Instances = make([]*Instance,0)
 		}
-		// Initialiser convenablement les instances à "non connectées"
+		// Initialiser les instances à "non connectées"
 		for _,instance := range result.Instances {
 			instance.Connected = false
 		}
+		if result.Services == nil {
+			result.Services = make ([]*Service,0)
+		}
 	}
-	return &result
+	return result, created
+}
+type Parameter struct {
+	Name 		string
+	Value 		string
+}
+func NewParameter(aName, aValue string) *Parameter {
+	return &Parameter{Name : aName, Value : aValue}
 }

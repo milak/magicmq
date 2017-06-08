@@ -111,14 +111,14 @@ func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request) 
 			value := req.Form["property-value"][i]
 			item.AddProperty(key, value)
 		}
-		this.context.Logger.Println("Adding item")
+		this.context.Logger.Println("DEBUG Adding item")
 		err := this.store.Push(item, content)
 		if err != nil {
-			this.context.Logger.Println("Failed to add", err)
+			this.context.Logger.Println("DEBUG Failed to add", err)
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(err.Error()))
 		} else {
-			this.context.Logger.Println("Item added")
+			this.context.Logger.Println("DEBUG Item added")
 			w.WriteHeader(http.StatusCreated)
 		}
 	} else if req.Method == http.MethodGet {
@@ -131,6 +131,7 @@ func (this *HttpService) itemListener(w http.ResponseWriter, req *http.Request) 
 		} else {
 			reader, err := this.store.GetContent(id, false)
 			if err != nil {
+				this.context.Logger.Println("ERROR i have not the content for a owned item ", id)
 				w.WriteHeader(http.StatusInternalServerError)
 			} else {
 				this.writeItem(w, item, reader)
@@ -307,16 +308,80 @@ func (this *HttpService) topicListener(w http.ResponseWriter, req *http.Request)
 		} else {
 			w.WriteHeader(http.StatusOK)
 		}
+	} else if req.Method == http.MethodPost {
+		req.ParseForm()
+		name := req.Form["name"]
+		if name == nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Missing name parameter"))
+			return
+		}
+		if len(name) != 1 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Wrong number of 'name' argument"))
+			return
+		}
+		topic := this.context.Configuration.GetTopic(name[0])
+		// TODO what about update ???
+		if topic != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Topic allready exist"))
+			return
+		}
+		topictypeArg := req.Form["type"]
+		if topictypeArg == nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Missing type parameter"))
+			return
+		}
+		topicType := topictypeArg[0]
+		if topicType == conf.VIRTUAL {
+			strategyArg := req.Form["strategy"]
+			if strategyArg == nil {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("Missing strategy parameter"))
+				return
+			}
+			strategy := strategyArg[0]
+			if strategy != conf.ROUND_ROBIN && strategy != conf.ORDERED {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("Only "+conf.ROUND_ROBIN+" and "+conf.ORDERED+" values are accepted for topic strategy parameter"))
+				return
+			}
+			topics := []string{}
+			for _, subTopicName := range req.Form["topic"] {
+				subTopic := this.context.Configuration.GetTopic(subTopicName)
+				if subTopic == nil {
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte("Sub topic not found "+subTopicName+""))
+					return
+				}
+				topics = append(topics,subTopicName)
+			}
+			topic = conf.NewVirtualTopic(name[0],strategy,topics)
+		} else if topicType == conf.SIMPLE {
+			topic = conf.NewTopic(name[0])
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Only "+conf.SIMPLE+" and "+conf.VIRTUAL+" values are accepted for topic type parameter"))
+			return
+		}
+		for i, key := range req.Form["parameter-name"] {
+			value := req.Form["parameter-value"][i]
+			topic.AddParameter(key, value)
+		}
 	} else {
 		this.methodNotSupported(w, req.Method)
 	}
 }
 func (this *HttpService) instanceListListener(w http.ResponseWriter, req *http.Request) {
+	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(w)
 	encoder.Encode(this.context.Configuration.Instances)
 }
 func (this *HttpService) instanceListener(w http.ResponseWriter, req *http.Request) {
+	w.Header().Add("Access-Control-Allow-Origin", "*")
 	instanceName := req.URL.Path
 	instanceName = instanceName[len("/instance/"):]
 	if req.Method == http.MethodDelete {
@@ -329,17 +394,23 @@ func (this *HttpService) instanceListener(w http.ResponseWriter, req *http.Reque
 		}
 	}
 }
+func (this *HttpService) serviceListListener(w http.ResponseWriter, req *http.Request) {
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(http.StatusOK)
+	encoder := json.NewEncoder(w)
+	encoder.Encode(this.context.Configuration.Services)
+}
 func (this *HttpService) logListener(w http.ResponseWriter, req *http.Request) {
 	file, err := os.Open("mmq.log")
 	if err != nil {
 		this.notFound(w)
-		this.context.Logger.Println("Unable to open log file", err)
+		this.context.Logger.Println("WARNING Unable to open log file", err)
 	} else {
 		w.WriteHeader(http.StatusOK)
 		data := make([]byte, 100)
 		count, err := file.Read(data)
 		if err != nil {
-			this.context.Logger.Println("Unable to open log file", err)
+			this.context.Logger.Println("WARNING Unable to open log file", err)
 		} else {
 			for count > 0 {
 				w.Write(data[:count])
@@ -370,10 +441,15 @@ func (this *HttpService) Start() {
 				}
 			}
 			if root == nil {
+				this.context.Logger.Println("WARNING Configuration error : missing root parameter for ADMIN service")
 				panic("Configuration error : missing root parameter for ADMIN service")
 			}
-			this.context.Logger.Println("Starting ADMIN service with root '" + (*root) + "'")
-			http.Handle("/", http.FileServer(http.Dir(*root)))
+			if _, err := os.Stat(*root); os.IsNotExist(err) {
+				this.context.Logger.Println("WARNING Configuration error : root parameter for ADMIN service doesn't match existing directory '" + (*root) + "'")
+			} else {
+				this.context.Logger.Println("INFO Starting ADMIN service with root '" + (*root) + "'")
+				http.Handle("/", http.FileServer(http.Dir(*root)))
+			}
 		} else if service.Name == "REST" {
 			for p := range service.Parameters {
 				if service.Parameters[p].Name == "port" {
@@ -392,6 +468,7 @@ func (this *HttpService) Start() {
 			http.HandleFunc("/item/", this.itemListener)
 			http.HandleFunc("/info", this.infoListener)
 			http.HandleFunc("/log", this.logListener)
+			http.HandleFunc("/service", this.serviceListListener)
 			http.HandleFunc("/shutdown", this.shutdownListener)
 		}
 	}

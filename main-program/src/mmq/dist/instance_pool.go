@@ -69,7 +69,7 @@ func (this *InstancePool) Build (aInstance *conf.Instance, aConnection *net.Conn
  */
 func (this *InstancePool) newInstanceConnection (aInstance *conf.Instance, aConnection *net.Conn) *instanceConnection{
 	result := &instanceConnection{instance : aInstance, connection : aConnection, pool : this}
-	this.context.Logger.Println("Adding connection to ",aInstance.Name())
+	this.context.Logger.Println("DEBUG Adding connection to ",aInstance.Name())
 	this.connections[aInstance.Name()] = result
 	return result
 }

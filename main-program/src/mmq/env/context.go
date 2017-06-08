@@ -15,11 +15,14 @@ type Context struct {
 	InstanceName	string
 }
 func NewContext(conf *conf.Configuration) *Context {
+	if conf == nil {
+		panic("Configuration cannot be nil")
+	}
 	var logger *log.Logger
 	file, err := os.Create("mmq.log")
 	if err != nil {
 		logger = log.New(os.Stdout, "",  log.Ldate | log.Ltime | log.Lshortfile)
-		logger.Println("Unable to open file mmq.log")
+		logger.Println("WARNING Unable to open file mmq.log")
 	} else {
 		logger = log.New(file, "",  log.Ldate | log.Ltime | log.Lshortfile)
 	}

@@ -12,6 +12,9 @@ type Service struct {
 	Active 		bool
 	Parameters 	[]Parameter `json:"Parameters,omitempty"`
 }
+func NewService(aName string, aActive bool, aParameters []Parameter) *Service {
+	return &Service{Name : aName, Comment : "Service " + aName, Active : aActive, Parameters : aParameters}
+}
 func (this *Service) GetParameterByName(aName string) *Parameter{
 	for _,p := range this.Parameters {
 		if p.Name == aName {
