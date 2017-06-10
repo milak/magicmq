@@ -1,7 +1,6 @@
 # Use a base image
 FROM golang:1.8
 
-RUN mkdir /go/bin
 ENV GOBIN /go/bin
 
 RUN echo "Building"
