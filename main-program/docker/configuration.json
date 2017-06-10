@@ -1,0 +1,130 @@
+{
+	"Version": "0.1",
+	"Groups" : ["all"],
+	"Topics": [
+		{
+			"Name": "ha-queue",
+			"Type": "SIMPLE",
+			"Parameters": [
+				{
+					"Name": "Store",
+					"Value": "RAM"
+				},
+				{
+					"Name": "MaxItemSize",
+					"Value": "100Mo"
+				},
+				{
+					"Name": "MaxRamItemSize",
+					"Value": "10Mo"
+				},
+				{
+					"Name": "Distributed",
+					"Value": "50%"
+				},
+				{
+					"Name": "DistributedGroups",
+					"Value": "all"
+				}
+			]
+		},
+		{
+			"Name": "routine-message",
+			"Type": "SIMPLE",
+			"Parameters": [
+				{
+					"Name": "Store",
+					"Value": "RAM"
+				},
+				{
+					"Name": "MaxItemSize",
+					"Value": "100Mo"
+				},
+				{
+					"Name": "MaxRamItemSize",
+					"Value": "10Mo"
+				},
+				{
+					"Name": "Distributed",
+					"Value": "NO"
+				},
+				{
+					"Name": "TimeToLive",
+					"Value": "50s"
+				}
+			]
+		},
+		{
+			"Name": "urgent-message",
+			"Type": "SIMPLE",
+			"Parameters": [
+				{
+					"Name": "Store",
+					"Value": "RAM"
+				},
+				{
+					"Name": "MaxItemSize",
+					"Value": "100Mo"
+				},
+				{
+					"Name": "MaxRamItemSize",
+					"Value": "10Mo"
+				},
+				{
+					"Name": "Distributed",
+					"Value": "NO"
+				}
+			]
+		},
+		{
+			"Name": "v-message",
+			"Type": "VIRTUAL",
+			"Topics": [
+				"urgent-message",
+				"routine-message"
+			],
+			"Parameters": [
+				{
+					"Name": "Strategy",
+					"Value": "ORDERED"
+				}
+			]
+		}
+	],
+	"Instances": [],
+	"Services": [
+		{
+			"Name": "ADMIN",
+			"Comment": "This service opens web administration. It requires REST service. Parameter : 'root' directory containing admin web files. Can be replaced by apache httpd.",
+			"Active": true,
+			"Parameters": [
+				{
+					"Name": "root",
+					"Value": "/web"
+				}
+			]
+		},
+		{
+			"Name": "REST",
+			"Comment": "This service opens REST API. Parameter : 'port' the listening port.",
+			"Active": true,
+			"Parameters": [
+				{
+					"Name": "port",
+					"Value": "80"
+				}
+			]
+		},
+		{
+			"Name": "SYNC",
+			"Comment": "This service opens SYNC port for clusterisation. Parameter : 'port' the listening port.",
+			"Active": true,
+			"Parameters": [
+				{
+					"Name": "port",
+					"Value": "1789"
+				}
+			]
+		}
+	]
+}

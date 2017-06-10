@@ -10,7 +10,7 @@ RUN ./build.sh
 
 # Copy the current directory contents into the container at /app
 #ADD docker/magicmq /
-#ADD docker/configuration.json /
+ADD configuration.json /
 #ADD web /web
 
 # Make port 80 and 8080 available to the world outside this container
@@ -21,5 +21,5 @@ RUN ./build.sh
 #ENV NAME World
 
 # Run magicmq when the container launches
-#CMD ["/magicmq", "-f", "configuration.json"]
-CMD ["echo","in the container"]
+CMD ["/mmq", "-f", "configuration.json"]
+#CMD ["echo","in the container"]
