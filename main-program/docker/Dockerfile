@@ -2,7 +2,7 @@
 FROM golang:1.8
 
 RUN echo "Building"
-WORKDIR /go/src/github.com/milak/mmq
+WORKDIR /go/src
 RUN go-wrapper download github.com/google/uuid
 RUN go-wrapper download github.com/milak/tools
 RUN go-wrapper download github.com/milak/mmq
