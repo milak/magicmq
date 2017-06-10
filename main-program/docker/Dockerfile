@@ -2,12 +2,12 @@
 FROM golang:1.8
 
 RUN echo "Building"
-WORKDIR /go/src/app
+WORKDIR /go/src/mmq
 #COPY . .
 RUN go-wrapper download github.com/google/uuid
 RUN go-wrapper download github.com/milak/tools
 RUN go-wrapper download github.com/milak/mmq
-RUN go-wrapper install github.com/milak/mmq/mmq/mmq.go
+RUN go-wrapper build github.com/milak/mmq/mmq/mmq.go
 #ADD build.sh /
 #RUN ls
 #RUN chmod a+x build.sh
