@@ -10,8 +10,8 @@ RUN go-wrapper download github.com/milak/mmq
 RUN go-wrapper install github.com/milak/mmq/mmq/mmq.go
 
 # Copy the current directory contents into the container at /app
-ADD configuration.json /
-#ADD web /web
+ADD docker/configuration.json /
+ADD web /web
 
 # Make port 80 and 8080 available to the world outside this container
 EXPOSE 80
