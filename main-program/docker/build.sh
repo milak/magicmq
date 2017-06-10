@@ -1,10 +1,10 @@
 echo "building..."
 ls
-mkdir src
+mkdir wokspace
 ls
-cd src
+cd wokspace
 ls
-export GOPATH=/src
+export GOPATH=/wokspace
 echo "getting sources..."
 go get -u github.com/google/uuid
 go get -u github.com/milak/mmq
@@ -12,5 +12,5 @@ go get -u github.com/milak/tools
 ls
 echo "compiling..."
 export CGO_ENABLED=0
-go build github.com/milak/mmq/mmq/mmq.go
+go build src/github.com/milak/mmq/mmq/mmq.go
 echo "compile successful"
