@@ -5,7 +5,8 @@ RUN echo "Building"
 RUN ls
 ADD build.sh /
 RUN ls
-RUN build.sh
+RUN chmod a+x build.sh
+RUN ./build.sh
 # Set the working directory to /app
 #WORKDIR /
 
