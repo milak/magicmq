@@ -3,7 +3,7 @@ FROM alpine
 
 RUN echo "Building"
 ADD build.sh /
-RUN ["build.sh"]
+RUN build.sh
 RUN 
 # Set the working directory to /app
 #WORKDIR /
