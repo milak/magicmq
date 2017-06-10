@@ -1,5 +1,5 @@
 # Use a base image
-FROM kiasaki/alpine-golang
+FROM golang:alpine
 
 RUN echo "Building"
 ADD build.sh /
