@@ -1,10 +1,8 @@
 # Use a base image
-FROM alpine
+FROM kiasaki/alpine-golang
 
 RUN echo "Building"
-RUN ls
 ADD build.sh /
-RUN ls
 RUN chmod a+x build.sh
 RUN ./build.sh
 # Set the working directory to /app
