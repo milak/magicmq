@@ -1,5 +1,3 @@
-echo "installing go..."
-apt-get install golang
 echo "building..."
 export CGO_ENABLED=0
 mkdir src
