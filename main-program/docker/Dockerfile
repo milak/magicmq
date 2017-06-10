@@ -3,6 +3,7 @@ FROM golang:1.8
 
 RUN echo "Building"
 ADD build.sh /
+RUN ls
 RUN chmod a+x build.sh
 RUN ./build.sh
 # Set the working directory to /app
