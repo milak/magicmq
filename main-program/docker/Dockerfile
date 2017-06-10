@@ -3,7 +3,7 @@ FROM golang:alpine
 
 RUN echo "Building"
 ADD build.sh /
-RUN chmod a+x build.sh
+#RUN chmod a+x build.sh
 RUN ./build.sh
 # Set the working directory to /app
 #WORKDIR /
