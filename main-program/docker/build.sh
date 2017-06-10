@@ -1,6 +1,9 @@
 echo "building..."
+ls
 mkdir src
+ls
 cd src
+ls
 export GOPATH=/src
 echo "getting sources..."
 go get -u github.com/google/uuid
