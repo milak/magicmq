@@ -4,9 +4,9 @@ FROM golang:1.8
 RUN echo "Building"
 WORKDIR /go/src/app
 #COPY . .
-RUN go-wrapper download github.com/google/uuid
-RUN go-wrapper download github.com/milak/mmq
-RUN go-wrapper download github.com/milak/tools
+RUN go-wrapper download -d github.com/google/uuid
+RUN go-wrapper download -d github.com/milak/mmq
+RUN go-wrapper download -d github.com/milak/tools
 RUN go-wrapper install github.com/milak/mmq/mmq/mmq.go
 #ADD build.sh /
 #RUN ls
