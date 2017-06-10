@@ -1,6 +1,9 @@
 # Use a base image
 FROM golang:1.8
 
+RUN mkdir /go/bin
+ENV GOBIN /go/bin
+
 RUN echo "Building"
 WORKDIR /go/src
 RUN go-wrapper download github.com/google/uuid
@@ -27,5 +30,5 @@ ADD configuration.json /
 #ENV NAME World
 
 # Run magicmq when the container launches
-CMD ["/mmq", "-f", "configuration.json"]
+CMD ["/go/bin/mmq", "-f", "configuration.json"]
 #CMD ["echo","in the container"]
