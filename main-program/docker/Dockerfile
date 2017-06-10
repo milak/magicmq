@@ -2,6 +2,7 @@
 FROM alpine
 
 RUN echo "Building"
+ADD . /src
 RUN ["ls"]
 # Set the working directory to /app
 #WORKDIR /
