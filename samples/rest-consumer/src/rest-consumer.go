@@ -165,7 +165,7 @@ func main() {
 					post(server+"/item", values)
 				}
 			} else if arg1 == "topic" {
-
+				
 			} else if arg1 == "instance" {
 
 			} else {
@@ -441,11 +441,15 @@ func commandHelp() {
 	fmt.Println(" ls   : list folders or items in the current position")
 	fmt.Println(" cd <position> : change current position")
 	fmt.Println(" mk <object> <options>...: create an object :")
-	fmt.Println(" 	item     : mk item -f <file> <topics>... [<parameters>...] | mk item -c <content> <topics> [<parameters>...]")
-	fmt.Println(" 	           <topics>     : <topicname>;<topicname>;...")
-	fmt.Println(" 	           <parameters> : <parameter>=<parameterValue>;")
-	fmt.Println(" 	topic    : mk topic <name> <type> <parameters>...")
+	fmt.Println(" 	item          : mk item -f <file> <topics>... [<parameters>...] | mk item -c <content> <topics> [<properties>...]")
+	fmt.Println(" 	topic         : mk topic <name> <properties>...")
+	fmt.Println(" 	vitual-topic  : mk virtual-topic <name> <strategy> <topics>...")
 	fmt.Println(" 	instance : mk instance <host> <port>")
+	fmt.Println("")
+	fmt.Println("   for lists :")
+	fmt.Println(" 	     <topics>     : <topicname>;<topicname>;...")
+	fmt.Println(" 	     <properties> : <property>=<propertyValue>;")
+	fmt.Println(" 	     <parameters> : <parameter>=<parameterValue>;")
 	fmt.Println(" pop [topic]  : get an item from topic, if current directory in topic, argument topic is optional")
 	fmt.Println(" quit | exit | bye : exit")
 }
