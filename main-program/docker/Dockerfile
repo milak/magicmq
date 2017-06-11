@@ -1,7 +1,6 @@
 # Use a base image
-FROM golang:1.8
+FROM golang:alpin
 
-RUN echo "Building"
 ENV GOBIN /go/bin
 WORKDIR /go/src
 RUN go-wrapper download github.com/google/uuid
