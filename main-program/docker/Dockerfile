@@ -1,5 +1,5 @@
 # Use a base image
-FROM golang:alpine
+FROM golang:1.8
 
 ENV GOBIN /go/bin
 WORKDIR /go/src
