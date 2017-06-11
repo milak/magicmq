@@ -19,6 +19,5 @@ EXPOSE 1789
 # Define environment variable
 #ENV NAME World
 WORKDIR /
-# Run magicmq when the container launches
+# Run mmq when the container launches
 CMD ["/go/bin/mmq", "-f", "configuration.json"]
-#CMD ["echo","in the container"]
