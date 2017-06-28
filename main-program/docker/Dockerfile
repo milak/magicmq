@@ -1,4 +1,7 @@
 # Use a base image
+LABEL vendor=milak
+LABEL source=github.com/milak/mmq
+LABEL maintainer=milak
 FROM golang:1.8
 
 ENV GOBIN /go/bin
