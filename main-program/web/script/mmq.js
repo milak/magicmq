@@ -115,7 +115,7 @@ function shutdown() {
 	if (!confirm("Voulez-vous vraiment arrêter ce serveur ?")){
 		return;
 	}
-	var url = "http://" + currentInstance.host + ":" + currentInstance.port + "/shutdown";
+	var url = "http://" + currentInstance.host + ":" + currentInstance.port + "/API/shutdown";
 	$.ajax({
 		url : url,
 		success : function(data) {
@@ -133,7 +133,7 @@ function shutdown() {
 	});
 }
 function loadInstance(aInstance, addToList) {
-	var url = "http://" + aInstance.host + ":" + aInstance.port + "/info";
+	var url = "http://" + aInstance.host + ":" + aInstance.port + "/API/info";
 	$.ajax({
 		url : url,
 		success : function(data) {
@@ -190,7 +190,7 @@ function loadTopic(aTopicName) {
 	$("#form-topic-button-list").prop('disabled', true);
 	currentTopic = null;
 	$.ajax({
-		url : "http://" + currentInstance.host + ":" + currentInstance.port + "/topic/" + aTopicName,
+		url : "http://" + currentInstance.host + ":" + currentInstance.port + "/API/topic/" + aTopicName,
 		success : function(data) {
 			currentTopic = data.Name;
 			$("#tabs").tabs("option", "active", 2);
@@ -217,7 +217,7 @@ function loadTopic(aTopicName) {
 	})
 }
 function loadLogs(){
-	var url = "http://"+currentInstance.host+":"+currentInstance.port+"/log";
+	var url = "http://"+currentInstance.host+":"+currentInstance.port+"/API/log";
 	$('#instance-logs').prop('src',url);
 }
 function loadInstanceInformation(aInstance) {
@@ -229,7 +229,7 @@ function loadInstanceInformation(aInstance) {
 	currentInstance = aInstance;
 	loadLogs();
 	$.ajax({
-		url : "http://" + aInstance.host + ":" + aInstance.port + "/info",
+		url : "http://" + aInstance.host + ":" + aInstance.port + "/API/info",
 		success : function(data) {
 			$("#form-config-version").val(data.Version);
 		},
@@ -239,7 +239,7 @@ function loadInstanceInformation(aInstance) {
 		dataType : "json"
 	});
 	$.ajax({
-		url : "http://" + aInstance.host + ":" + aInstance.port + "/topic",
+		url : "http://" + aInstance.host + ":" + aInstance.port + "/API/topic",
 		success : function(data) {
 			var topic_list = "";
 			var formCreateItemTopicList = "";
@@ -255,7 +255,7 @@ function loadInstanceInformation(aInstance) {
 			}
 			$("#topic-list").html(topic_list);
 			$("#form-create-item-topic-list").html(formCreateItemTopicList);
-			$("#form-create-item").prop('action', "http://" + aInstance.host + ":" + aInstance.port + "/item");
+			$("#form-create-item").prop('action', "http://" + aInstance.host + ":" + aInstance.port + "/API/item");
 			$("#form-create-item-submit").prop('disabled', false);
 		},
 		error : function(jqXHR, textStatus, errorThrown) {
@@ -265,7 +265,7 @@ function loadInstanceInformation(aInstance) {
 	});
 }
 function createItem() {
-	var url = "http://"+currentInstance.host+":"+currentInstance.port+"/item";
+	var url = "http://"+currentInstance.host+":"+currentInstance.port+"/API/item";
 	var radios = $('input[type=radio][name=form-create-item-content-type]');
 	var mode = "text";
 	for (var i = 0; i < radios.length ; i++) {
@@ -339,7 +339,7 @@ function clearItem() {
 	$("#form-topic-item-alert").html("");
 }
 function listItems() {
-	var url = "http://" + currentInstance.host + ":" + currentInstance.port + "/topic/" + currentTopic + "/list";
+	var url = "http://" + currentInstance.host + ":" + currentInstance.port + "/API/topic/" + currentTopic + "/list";
 	$("#form-topic-item-list").html("");
 	$.ajax({
 		url : url,
@@ -373,7 +373,7 @@ function listItems() {
 }
 function popAnItem() {
 	clearItem();
-	var url = "http://" + currentInstance.host + ":" + currentInstance.port	+ "/topic/" + currentTopic + "/pop";
+	var url = "http://" + currentInstance.host + ":" + currentInstance.port	+ "/API/topic/" + currentTopic + "/pop";
 	$.ajax({
 		url : url,
 		success : function(data, textStatus, jqXHR) {
