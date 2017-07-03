@@ -27,5 +27,6 @@ EXPOSE 1789
 
 WORKDIR /
 # Run mmq when the container launches
-CMD ["/go/bin/mmq", "-f", "configuration.json"]
+ENTRYPOINT ["/run.sh"]
+#CMD ["/go/bin/mmq", "-f", "configuration.json"]
 #CMD ["/run.sh"]
