@@ -414,7 +414,7 @@ $(function() {
 		reloadInstancesInStore();
 	} else {
 		$.ajax({
-			url : "/info",
+			url : "/API/info",
 			success : function(data) {
 				var instance = new Instance(data.Host, data.Port);
 				instance.version = data.Version;
