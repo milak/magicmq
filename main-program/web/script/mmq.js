@@ -410,7 +410,22 @@ $(function() {
 		}
 	});
 	$("#tabs").tabs();
-	if (!store.isEmpty()) {
+	$.ajax({
+		url : "/API/info",
+		success : function(data) {
+			var instance = new Instance(data.Host, data.Port);
+			instance.version = data.Version;
+			instance.groups = data.Groups;
+			addInstancePanel(instance, null);
+			store.addInstance(instance);
+			loadInstanceInformation(instance);
+		},
+		error : function(jqXHR, textStatus, errorThrown) {
+			addInstancePanel(instance, "Unreachable " + errorThrown);
+		},
+		dataType : "jsonp"
+	});
+	//if (!store.isEmpty()) {
 		//reloadInstancesInStore();
 		$.ajax({
 			url : "/API/instance",
@@ -427,21 +442,7 @@ $(function() {
 			},
 			dataType : "jsonp"
 		});
-	} else {
-		$.ajax({
-			url : "/API/info",
-			success : function(data) {
-				var instance = new Instance(data.Host, data.Port);
-				instance.version = data.Version;
-				instance.groups = data.Groups;
-				addInstancePanel(instance, null);
-				store.addInstance(instance);
-				loadInstanceInformation(instance);
-			},
-			error : function(jqXHR, textStatus, errorThrown) {
-				addInstancePanel(instance, "Unreachable " + errorThrown);
-			},
-			dataType : "jsonp"
-		});
-	}
+	//} else {
+		
+	//}
 });
