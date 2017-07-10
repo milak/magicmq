@@ -203,6 +203,7 @@ function loadTopic(aTopicName) {
 			$("#form-topic-item-value").val("");
 			$("#form-topic-item-list").html("");
 			$("#form-topic-rsslink").prop("href","http://"+currentInstance.host+":"+currentInstance.port+"/API/topic/"+aTopicName+"/rss");
+			$("#form-topic-atomlink").prop("href","http://"+currentInstance.host+":"+currentInstance.port+"/API/topic/"+aTopicName+"/atom");
 			var html = "";
 			for (var i = 0; i < data.Parameters.length; i++) {
 				var property = data.Parameters[i];
