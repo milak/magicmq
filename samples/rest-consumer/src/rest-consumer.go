@@ -55,9 +55,9 @@ func get(url string) bool {
 	defer resp.Body.Close()
 	buffer := make([]byte, 1000)
 	count, err := resp.Body.Read(buffer)
-	for k, v := range resp.Header {
-		fmt.Println(k, v)
-	}
+	//for k, v := range resp.Header {
+	//	fmt.Println(k, v)
+	//}
 	/*if err != nil {
 		fmt.Println("Echec lors de l'appel au serveur", err)
 		return false
@@ -99,7 +99,7 @@ func main() {
 		flag.Usage()
 		return
 	}
-	server := "http://" + *hostFlag + ":" + *portFlag
+	server := "http://" + *hostFlag + ":" + *portFlag+"/API"
 	fmt.Println("Starting simple-consumer...")
 	information := new(struct {
 		Host    string
@@ -146,31 +146,7 @@ func main() {
 			}
 			commandHelp()
 		} else if command == "mk" {
-			if arg1 == "item" {
-				if count < 4 {
-					fmt.Println("Not enough argument")
-				} else {
-					topics := arg4
-					var content []byte
-					if arg2 == "-f" {
-						content = []byte(arg3) // TODO read the file
-					} else if arg2 == "-c" {
-						content = []byte(arg3)
-					} else {
-						fmt.Println("Option not supported " + arg2)
-					}
-					values := make(url.Values)
-					values["topic"] = []string{topics}
-					values["value"] = []string{string(content)}
-					post(server+"/item", values)
-				}
-			} else if arg1 == "topic" {
-				
-			} else if arg1 == "instance" {
-
-			} else {
-				fmt.Println("Can't create " + arg1)
-			}
+			commandMk(server,currentDirectory, count, arg1, arg2, arg3, arg4)
 		} else if command == "pop" {
 			commandPop(server, currentDirectory, count, arg1)
 		} else if command == "cd" {
@@ -192,6 +168,8 @@ func main() {
 			} else if currentDirectory == "/service" {
 
 			}
+		} else if command == "shutdown" {
+			get(server + "/shutdown")
 		} else {
 			fmt.Println("unsupported command '" + command + "'")
 		}
@@ -205,6 +183,33 @@ func fill(text string, what string, max int) string {
 		total++
 	}
 	return result
+}
+func commandMk(server string, currentDirectory string, count int, arg1 string, arg2 string, arg3 string, arg4 string){
+	if arg1 == "item" {
+		if count < 4 {
+			fmt.Println("Not enough argument")
+		} else {
+			topics := arg4
+			var content []byte
+			if arg2 == "-f" {
+				content = []byte(arg3) // TODO read the file
+			} else if arg2 == "-c" {
+				content = []byte(arg3)
+			} else {
+				fmt.Println("Option not supported " + arg2)
+			}
+			values := make(url.Values)
+			values["topic"] = []string{topics}
+			values["value"] = []string{string(content)}
+			post(server+"/item", values)
+		}
+	} else if arg1 == "topic" {
+		
+	} else if arg1 == "instance" {
+
+	} else {
+		fmt.Println("Can't create " + arg1)
+	}
 }
 func commandPop(server string, currentDirectory string, count int, arg1 string) {
 	var topic string
@@ -451,5 +456,6 @@ func commandHelp() {
 	fmt.Println(" 	     <properties> : <property>=<propertyValue>;")
 	fmt.Println(" 	     <parameters> : <parameter>=<parameterValue>;")
 	fmt.Println(" pop [topic]  : get an item from topic, if current directory in topic, argument topic is optional")
+	fmt.Println(" shutdown : shutdown the server")
 	fmt.Println(" quit | exit | bye : exit")
 }
