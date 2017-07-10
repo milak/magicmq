@@ -430,11 +430,8 @@ $(function() {
 	$.ajax({
 		url : "/API/instance",
 		success : function(data) {
-			alert("Getting instances !!!");
-			alert("Getting instances " + data.length);
 			for (var i = 0; i < data.length; i++){
 				var instance = new Instance(data[i].Host, "80");
-				alert("Getting instances " + instance.host);
 				//TODO instance.version = data.Version;
 				instance.groups = data[i].Groups;
 				loadInstance(instance, true);
