@@ -202,7 +202,7 @@ function loadTopic(aTopicName) {
 			$("#form-topic-item-properties").html("");
 			$("#form-topic-item-value").val("");
 			$("#form-topic-item-list").html("");
-			$("#form-topic-rsslink").prop("href","/topic/"+aTopicName+"/rss");
+			$("#form-topic-rsslink").prop("href","http://"+currentInstance.host+":"+currentInstance.port+"/API/topic/"+aTopicName+"/rss");
 			var html = "";
 			for (var i = 0; i < data.Parameters.length; i++) {
 				var property = data.Parameters[i];
@@ -254,6 +254,7 @@ function loadInstanceInformation(aInstance) {
 				topic_list += "</tr>";
 			}
 			$("#topic-list").html(topic_list);
+			$("#topic-list-opmllink").prop("href","http://"+currentInstance.host+":"+currentInstance.port+"/API/topic/topics.opml");
 			$("#form-create-item-topic-list").html(formCreateItemTopicList);
 			$("#form-create-item").prop('action', "http://" + aInstance.host + ":" + aInstance.port + "/API/item");
 			$("#form-create-item-submit").prop('disabled', false);
@@ -425,24 +426,23 @@ $(function() {
 		},
 		dataType : "jsonp"
 	});
-	//if (!store.isEmpty()) {
-		//reloadInstancesInStore();
-		$.ajax({
-			url : "/API/instance",
-			success : function(data) {
-				for (var i = 0; i < data.length; i++){
-					var instance = new Instance(data[i].Host, "80");
-					//TODO instance.version = data.Version;
-					instance.groups = data[i].Groups;
-					loadInstance(instance, false);
-				}
-			},
-			error : function(jqXHR, textStatus, errorThrown) {
-				//addInstancePanel(instance, "Unreachable " + errorThrown);
-			},
-			dataType : "jsonp"
-		});
-	//} else {
-		
-	//}
+	$.ajax({
+		url : "/API/instance",
+		success : function(data) {
+			alert("Getting instances !!!");
+			alert("Getting instances " + data.length);
+			for (var i = 0; i < data.length; i++){
+				var instance = new Instance(data[i].Host, "80");
+				alert("Getting instances " + instance.host);
+				//TODO instance.version = data.Version;
+				instance.groups = data[i].Groups;
+				loadInstance(instance, true);
+			}
+		},
+		error : function(jqXHR, textStatus, errorThrown) {
+			alert("Getting instances FAIL " + textStatus + " - " + errorThrown);
+			//addInstancePanel(instance, "Unreachable " + errorThrown);
+		},
+		dataType : "jsonp"
+	});
 });

@@ -73,19 +73,18 @@ func get(url string) bool {
 	fmt.Println()
 	return true
 }
-func getObject(url string, object interface{}) bool {
+func getObject(url string, object interface{}) error {
 	//fmt.Println("Calling ",url)
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println("Echec lors de l'appel au serveur", err)
-		return false
+		return err
 	}
 	defer resp.Body.Close()
 	//body, err := ioutil.ReadAll(resp.Body)
 	//fmt.Println("response ", body)
 	decoder := json.NewDecoder(resp.Body)
 	decoder.Decode(&object)
-	return true
+	return nil
 }
 func main() {
 	flag.Parse() // Scan the arguments list
@@ -107,7 +106,9 @@ func main() {
 		Version string
 		Groups  []string
 	})
-	if !getObject(server+"/info", &information) {
+	err := getObject(server+"/info", &information)
+	if err != nil {
+		fmt.Println("Unable to connect to server",err)
 		return
 	}
 	fmt.Println("Connected to server version n°" + information.Version)
@@ -120,11 +121,7 @@ func main() {
 		if len(command) == 0 {
 			continue
 		} else if command == "info" {
-			fmt.Println("Server information")
-			fmt.Println(" - host    :", information.Host)
-			fmt.Println(" - port    :", information.Port)
-			fmt.Println(" - version :", information.Version)
-			fmt.Println(" - groups  :", information.Groups)
+			commandInfo(server)
 		} else if command == "exit" || command == "bye" || command == "quit" {
 			if count != 1 {
 				fmt.Println("too much arguments")
@@ -183,6 +180,25 @@ func fill(text string, what string, max int) string {
 		total++
 	}
 	return result
+}
+func commandInfo(server string) error {
+	information := new(struct {
+		Host    string
+		Port    string
+		Version string
+		Groups  []string
+	})
+	err := getObject(server+"/info", &information)
+	if err != nil {
+		fmt.Println("Unable to connect to server",err)
+	} else {
+		fmt.Println("Server information")
+		fmt.Println(" - host    :", information.Host)
+		fmt.Println(" - port    :", information.Port)
+		fmt.Println(" - version :", information.Version)
+		fmt.Println(" - groups  :", information.Groups)
+	}
+	return err
 }
 func commandMk(server string, currentDirectory string, count int, arg1 string, arg2 string, arg3 string, arg4 string){
 	if arg1 == "item" {
