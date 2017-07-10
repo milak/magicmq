@@ -8,6 +8,7 @@ LABEL maintainer=milak
 
 ENV GOBIN /go/bin
 WORKDIR /go/src
+RUN go-wrapper download golang.org/x/net/websocket
 RUN go-wrapper download github.com/google/uuid
 RUN go-wrapper download github.com/milak/tools
 RUN go-wrapper download github.com/milak/mmq
