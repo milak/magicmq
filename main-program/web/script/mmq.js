@@ -411,7 +411,22 @@ $(function() {
 	});
 	$("#tabs").tabs();
 	if (!store.isEmpty()) {
-		reloadInstancesInStore();
+		//reloadInstancesInStore();
+		$.ajax({
+			url : "/API/instance",
+			success : function(data) {
+				for (var i = 0; i < data.length; i++){
+					var instance = new Instance(data[i].Host, "80");
+					//TODO instance.version = data.Version;
+					instance.groups = data[i].Groups;
+					loadInstance(instance, false);
+				}
+			},
+			error : function(jqXHR, textStatus, errorThrown) {
+				//addInstancePanel(instance, "Unreachable " + errorThrown);
+			},
+			dataType : "jsonp"
+		});
 	} else {
 		$.ajax({
 			url : "/API/info",
