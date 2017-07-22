@@ -11,6 +11,7 @@ WORKDIR /go/src
 RUN go-wrapper download golang.org/x/net/websocket
 RUN go-wrapper download github.com/google/uuid
 RUN go-wrapper download github.com/milak/tools
+RUN go-wrapper download github.com/milak/mmqapi
 RUN go-wrapper download github.com/milak/mmq
 RUN go-wrapper install github.com/milak/mmq/mmq/mmq.go
 
